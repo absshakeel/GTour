@@ -139,7 +139,8 @@ export default async function HotelDetailPage({ params }: PageProps) {
                   {typeof cheapestRoom === 'number'
                     ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
-                        currency: 'USD',
+                        currency: 'BDT',
+                        currencyDisplay: 'narrowSymbol',
                         maximumFractionDigits: 0,
                       }).format(cheapestRoom)
                     : 'On request'}

@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Button } from '@gtour/ui';
 import { Field, Input, Select, Textarea } from '@gtour/ui';
 import { apiClient, getApiErrorMessage } from '@gtour/utils';
 import { dateInputToIso, formatCurrency, nightsBetween, toDateInputValue } from '@/lib/format';
 import { readToken, readUser } from '@gtour/utils';
-import type { AuthUserDto, RoomDto } from '@gtour/utils';
+import type { AuthUserDto, RoomDto, RoomQuoteDto } from '@gtour/utils';
 
 interface BookingResponse {
   success: boolean;
@@ -33,9 +33,12 @@ function formatDate(iso: string): string {
 }
 
 /**
- * Hotel booking panel. Availability and pricing are decided by the server, so
- * the panel only shows an estimate and never claims a booking is confirmed
- * until `POST /bookings` returns.
+ * Hotel booking panel.
+ *
+ * Pricing and availability are owned by the API. The panel asks for a server
+ * quote whenever the stay changes and only ever sends the room, dates and guest
+ * count — never a total, which the server recomputes before accepting the
+ * booking. Nothing is presented as confirmed until `POST /bookings` returns.
  */
 export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
   const [user, setUser] = useState<AuthUserDto | null>(null);
@@ -44,10 +47,15 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [guestCount, setGuestCount] = useState('1');
+  const [roomCount, setRoomCount] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<BookingResponse['booking'] | null>(null);
+
+  const [quote, setQuote] = useState<RoomQuoteDto | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
 
   const today = useMemo(() => toDateInputValue(new Date()), []);
 
@@ -58,9 +66,68 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
 
   const room = rooms.find((item) => item._id === roomId) ?? rooms[0];
   const nights = nightsBetween(startDate, endDate);
-  const estimate = room && nights ? room.price_per_night * nights : undefined;
-  const maxGuests = room?.capacity ?? 1;
+  const maxGuests = (room?.capacity ?? 1) * (Number(roomCount) || 1);
+  /** Live inventory for the chosen dates when known, otherwise the room's own cap. */
+  const roomsAvailable = Math.max(1, quote?.max_rooms ?? room?.total_rooms ?? 1);
   const canSubmit = signedIn === true && Boolean(user);
+
+  /**
+   * Ask the API to price the stay. The quote is the single source of truth for
+   * what the guest will be charged and for how much inventory is left, so it is
+   * refreshed whenever an input that affects the price changes.
+   *
+   * When the requested room count is above what is left, the request is re-sent
+   * once for a single room: that is what tells the panel the real ceiling, and
+   * it stops an over-request from blanking out a stay that is still bookable.
+   */
+  const loadQuote = useCallback(async () => {
+    if (!room || !nights) {
+      setQuote(null);
+      setQuoteError(null);
+      return;
+    }
+
+    setQuoting(true);
+    setQuoteError(null);
+
+    const requested = Number(roomCount) || 1;
+
+    try {
+      const fetchQuote = (rooms: number) =>
+        apiClient.get<{ success: boolean; quote: RoomQuoteDto }>(
+          `/rooms/${encodeURIComponent(room._id)}/quote`,
+          {
+            params: {
+              check_in: startDate,
+              check_out: endDate,
+              rooms,
+              guests: Number(guestCount) || 1,
+            },
+          }
+        );
+
+      let { data } = await fetchQuote(requested);
+
+      if (!data.quote.available && requested > 1) {
+        const retry = await fetchQuote(1);
+        if (retry.data.quote.available) {
+          data = retry.data;
+          setRoomCount('1');
+        }
+      }
+
+      setQuote(data.quote);
+    } catch (quoteFailure) {
+      setQuote(null);
+      setQuoteError(getApiErrorMessage(quoteFailure));
+    } finally {
+      setQuoting(false);
+    }
+  }, [roomId, startDate, endDate, roomCount, guestCount, nights, room]);
+
+  useEffect(() => {
+    void loadQuote();
+  }, [loadQuote]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,9 +145,19 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
       setError('Choose a check-in and check-out date; check-out must be after check-in.');
       return;
     }
+    if (quote && !quote.available) {
+      setError('Those nights are no longer available. Try different dates.');
+      return;
+    }
+    if (Number(roomCount) > roomsAvailable) {
+      setError(`Only ${roomsAvailable} room(s) are left for those dates.`);
+      return;
+    }
 
     setSubmitting(true);
     try {
+      // `total_amount` is intentionally omitted: the server prices the stay and
+      // rejects any client figure that does not match its own calculation.
       const { data } = await apiClient.post<BookingResponse>(
         '/bookings',
         {
@@ -89,11 +166,8 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
           start_date: dateInputToIso(startDate),
           end_date: dateInputToIso(endDate),
           guest_count: Number(guestCount) || 1,
-          total_amount: room.price_per_night * nights,
+          room_count: Number(roomCount) || 1,
           special_requests: specialRequests.trim() || undefined,
-          // The API replaces this with the authenticated user; the request
-          // schema still requires the field, so the signed-in id is sent.
-          user_id: user?.id ?? '',
         },
         { headers: { Authorization: `Bearer ${readToken() ?? ''}` } }
       );
@@ -205,6 +279,7 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
             onChange={(event) => {
               setRoomId(event.target.value);
               setGuestCount('1');
+              setRoomCount('1');
             }}
           >
             {rooms.map((item) => {
@@ -240,20 +315,45 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
           </Field>
         </div>
 
-        <Field
-          label="Guests"
-          htmlFor="booking-guests"
-          hint={`This room sleeps up to ${maxGuests}.`}
-        >
-          <Input
-            id="booking-guests"
-            type="number"
-            min={1}
-            max={maxGuests}
-            value={guestCount}
-            onChange={(event) => setGuestCount(event.target.value)}
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Rooms"
+            htmlFor="booking-rooms"
+            hint={
+              room
+                ? quote
+                  ? `${quote.max_rooms} of ${room.total_rooms} room${
+                      room.total_rooms === 1 ? '' : 's'
+                    } still free for these dates.`
+                  : `${room.total_rooms} room${room.total_rooms === 1 ? '' : 's'} of this type in total.`
+                : undefined
+            }
+          >
+            <Input
+              id="booking-rooms"
+              type="number"
+              min={1}
+              max={roomsAvailable}
+              value={roomCount}
+              onChange={(event) => setRoomCount(event.target.value)}
+            />
+          </Field>
+
+          <Field
+            label="Guests"
+            htmlFor="booking-guests"
+            hint={`Selected rooms sleep up to ${maxGuests}.`}
+          >
+            <Input
+              id="booking-guests"
+              type="number"
+              min={1}
+              max={maxGuests}
+              value={guestCount}
+              onChange={(event) => setGuestCount(event.target.value)}
+            />
+          </Field>
+        </div>
 
         <Field
           label="Special requests"
@@ -272,22 +372,52 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
         <div className="rounded-2xl bg-sand-100 px-4 py-3 text-sm">
           <div className="flex items-center justify-between gap-4">
             <span className="text-ink-600">
-              {nights ? `${nights} night${nights === 1 ? '' : 's'}` : 'Select dates'}
+              {quoting
+                ? 'Checking the server…'
+                : nights
+                  ? `${nights} night${nights === 1 ? '' : 's'}`
+                  : 'Select dates'}
             </span>
             <span className="font-display text-lg font-semibold text-ink-900">
-              {formatCurrency(estimate) ?? '—'}
+              {quoting ? '…' : (formatCurrency(quote?.total) ?? '—')}
             </span>
           </div>
-          <p className="mt-1 text-xs text-ink-500">
-            Estimate only. Availability and the final price are confirmed by the server.
-          </p>
+
+          {quoteError ? (
+            <p className="mt-1 text-xs text-terracotta-700">{quoteError}</p>
+          ) : quote && !quote.available ? (
+            <p className="mt-1 text-xs font-medium text-terracotta-700">
+              Not enough rooms for those dates. Try other dates or fewer rooms.
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-500">
+              Quoted by the server for the selected dates, rooms and guests.
+            </p>
+          )}
+
+          {quote && quote.nightly.length > 1 ? (
+            <ul className="mt-3 space-y-1 border-t border-ink-100 pt-3 text-xs text-ink-500">
+              {quote.nightly.map((night) => (
+                <li key={night.date} className="flex justify-between gap-4">
+                  <span>
+                    {formatDate(night.date)}
+                    {night.status === 'unavailable' ? ' — sold out' : ''}
+                    {night.status === 'partial' ? ' — limited' : ''}
+                  </span>
+                  <span className="font-medium text-ink-700">
+                    {formatCurrency(night.price_per_night) ?? '—'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <Button
           type="submit"
           size="lg"
           className="w-full"
-          disabled={submitting || rooms.length === 0}
+          disabled={submitting || quoting || rooms.length === 0 || (quote ? !quote.available : false)}
         >
           {submitting ? 'Sending request...' : 'Request this room'}
         </Button>

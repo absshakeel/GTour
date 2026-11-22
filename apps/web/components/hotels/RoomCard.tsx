@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { Badge } from '@gtour/ui';
 import { cn } from '@gtour/utils';
 import { images } from '@/lib/images';
+import { formatCurrency } from '@/lib/format';
 import type { RoomDto } from '@gtour/utils';
 
 const ROOM_FALLBACKS = [images.stays.room, images.stays.resort, images.stays.terrace];
@@ -12,14 +13,7 @@ function roomImage(room: RoomDto) {
   return ROOM_FALLBACKS[room.room_type.length % ROOM_FALLBACKS.length].src;
 }
 
-export function formatCurrency(value?: number) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+export { formatCurrency };
 
 /**
  * Room listing card. Prices come from the server (`price_per_night`), never from
