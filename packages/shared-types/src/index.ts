@@ -96,6 +96,7 @@ export interface Hotel {
   images: string[];
   rating?: number;
   destination_id: string;
+  owner_id: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -107,6 +108,7 @@ export interface Room {
   bed_type: string;
   capacity: number;
   price_per_night: number;
+  total_rooms: number;
   amenities: string[];
   images: string[];
   created_at: Date;
@@ -124,6 +126,17 @@ export interface RoomAvailability {
   updated_at: Date;
 }
 
+export interface PriceSnapshot {
+  currency: string;
+  nights: number;
+  rooms: number;
+  price_per_night: number;
+  subtotal: number;
+  total: number;
+  nightly: { date: string; price_per_night: number }[];
+  captured_at: Date;
+}
+
 export interface Booking {
   _id: string;
   booking_reference: string;
@@ -131,10 +144,18 @@ export interface Booking {
   start_date: Date;
   end_date: Date;
   guest_count: number;
+  room_count: number;
   total_amount: number;
+  price_snapshot?: PriceSnapshot;
   status: BookingStatus;
   special_requests?: string;
+  cancellation_reason?: string;
+  cancelled_at?: Date;
   user_id: string;
+  hotel_id?: string;
+  hotel_room_id?: string;
+  photography_service_id?: string;
+  vehicle_id?: string;
   created_at: Date;
   updated_at: Date;
 }

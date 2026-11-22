@@ -4,5 +4,7 @@ export * from './Badge';
 export * from './Card';
 export * from './Feedback';
 export * from './Reveal';
+export * from './ImageUploader';
+export * from './DashShell';
 export { default as AuthGuard } from './AuthGuard';
 export { default } from './AuthGuard';
