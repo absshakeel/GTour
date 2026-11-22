@@ -4,6 +4,9 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  // Integration suites boot an in-memory MongoDB, which can take tens of
+  // seconds on a cold binary cache.
+  testTimeout: 60000,
   moduleNameMapper: {
     '^@gtour/shared-types$': '<rootDir>/../../packages/shared-types/src/index.ts',
     '^@gtour/validation$': '<rootDir>/../../packages/validation/src/index.ts',

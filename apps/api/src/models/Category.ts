@@ -26,6 +26,6 @@ const CategorySchema = new Schema<ICategory>(
   }
 );
 
-CategorySchema.index({ name: 1 }, { unique: true });
+// `name` is already indexed by the path-level `unique: true` above.
 
 export default mongoose.model<ICategory>('Category', CategorySchema);

@@ -8,13 +8,22 @@ import type { AuthUserDto } from '@gtour/utils';
 export default function AuthGuard({
   children,
   requireAdmin = false,
+  roles,
 }: {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  /**
+   * Optional allow-list of roles. A signed-in user whose role is not listed is
+   * redirected to `/dashboard`. This mirrors the server's `authorize` middleware
+   * — the API still enforces authorization on every request.
+   */
+  roles?: string[];
 }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<AuthUserDto | null>(null);
+
+  const roleKey = roles ? roles.join(',') : '';
 
   useEffect(() => {
     const check = () => {
@@ -25,6 +34,11 @@ export default function AuthGuard({
         return;
       }
       if (requireAdmin && current.role !== 'admin') {
+        router.replace('/dashboard');
+        return;
+      }
+      const allowed = roleKey ? roleKey.split(',') : null;
+      if (allowed && !allowed.includes(current.role)) {
         router.replace('/dashboard');
         return;
       }
@@ -39,7 +53,7 @@ export default function AuthGuard({
       window.removeEventListener(SESSION_EVENT, check);
       window.removeEventListener('storage', check);
     };
-  }, [requireAdmin, router]);
+  }, [requireAdmin, roleKey, router]);
 
   if (!ready || !user) {
     return (

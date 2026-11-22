@@ -3,6 +3,29 @@
 import { z } from 'zod';
 import { UserRole, BookingStatus, PaymentStatus, AccountStatus } from '@gtour/shared-types';
 
+/**
+ * Hotel stays are calendar based, so both an ISO timestamp (`2025-04-01T00:00:00Z`)
+ * and a plain date input value (`2025-04-01`) are accepted. The API normalises
+ * whichever form it receives to UTC midnight before touching the database.
+ */
+const dateString = (message: string) =>
+  z.string().refine((value) => !Number.isNaN(Date.parse(value)), { message });
+
+/**
+ * Query strings always arrive as strings, so numeric query filters need
+ * coercion before validation. Blank values are treated as "not provided" so an
+ * empty filter input does not fail the request.
+ */
+const queryNumber = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? value : parsed;
+    }
+    return value;
+  }, schema);
+
 // User validation schemas
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -80,6 +103,7 @@ export const createRoomSchema = z.object({
   bed_type: z.string().min(2, 'Bed type must be at least 2 characters'),
   capacity: z.number().int().positive('Capacity must be a positive integer'),
   price_per_night: z.number().positive('Price must be positive'),
+  total_rooms: z.number().int().positive('Total rooms must be a positive integer').optional().default(1),
   amenities: z.array(z.string()).min(1, 'At least one amenity is required'),
   images: z.array(z.string().url()).min(1, 'At least one image is required')
 });
@@ -89,6 +113,7 @@ export const updateRoomSchema = z.object({
   bed_type: z.string().min(2, 'Bed type must be at least 2 characters').optional(),
   capacity: z.number().int().positive('Capacity must be a positive integer').optional(),
   price_per_night: z.number().positive('Price must be positive').optional(),
+  total_rooms: z.number().int().positive('Total rooms must be a positive integer').optional(),
   amenities: z.array(z.string()).min(1, 'At least one amenity is required').optional(),
   images: z.array(z.string().url()).min(1, 'At least one image is required').optional()
 });
@@ -96,12 +121,22 @@ export const updateRoomSchema = z.object({
 // Booking validation schemas
 export const createBookingSchema = z.object({
   booking_type: z.enum(['hotel', 'photography', 'vehicle']),
-  start_date: z.string().datetime('Invalid start date'),
-  end_date: z.string().datetime('Invalid end date'),
+  start_date: dateString('Invalid start date'),
+  end_date: dateString('Invalid end date'),
   guest_count: z.number().int().positive('Guest count must be a positive integer'),
-  total_amount: z.number().positive('Total amount must be positive'),
+  /**
+   * Optional. The client may send the total it displayed, but the server always
+   * recomputes the authoritative amount and rejects a mismatch. It is never
+   * persisted as-is.
+   */
+  total_amount: z.number().positive('Total amount must be positive').optional(),
+  /**
+   * How many units of the chosen resource the stay needs. Declaring it here (not
+   * just reading `req.body` later) keeps it inside the parsed payload, so a
+   * multi-room request can never be silently downgraded to a single room.
+   */
+  room_count: z.number().int().positive('Room count must be a positive integer').max(20).optional(),
   special_requests: z.string().max(500, 'Special requests must be less than 500 characters').optional(),
-  user_id: z.string().min(1, 'User ID is required'),
   // Polymorphic references
   hotel_room_id: z.string().optional(),
   photography_service_id: z.string().optional(),
@@ -109,10 +144,10 @@ export const createBookingSchema = z.object({
 }).refine(
   (data) => {
     // Exactly one of the polymorphic references must be provided
-    const hasReference = !!data.hotel_room_id || !!data.photography_service_id || !!data.vehicle_id;
-    return hasReference;
+    const references = [data.hotel_room_id, data.photography_service_id, data.vehicle_id].filter(Boolean);
+    return references.length === 1;
   },
-  { message: 'One of hotel_room_id, photography_service_id, or vehicle_id must be provided' }
+  { message: 'Exactly one of hotel_room_id, photography_service_id, or vehicle_id must be provided' }
 );
 
 export const updateBookingSchema = z.object({
@@ -120,11 +155,17 @@ export const updateBookingSchema = z.object({
   special_requests: z.string().max(500, 'Special requests must be less than 500 characters').optional()
 });
 
+/** Provider/guest status transition request. */
+export const bookingStatusSchema = z.object({
+  status: z.nativeEnum(BookingStatus),
+  reason: z.string().max(300, 'Reason must be less than 300 characters').optional()
+});
+
 // Payment validation schemas
 export const createPaymentSchema = z.object({
   booking_id: z.string().min(1, 'Booking ID is required'),
   amount: z.number().positive('Amount must be positive'),
-  currency: z.string().length(3, 'Currency must be 3 characters').optional().default('USD'),
+  currency: z.string().length(3, 'Currency must be 3 characters').optional(),
   payment_method: z.string().min(1, 'Payment method is required'),
   transaction_reference: z.string().optional()
 });
@@ -211,13 +252,47 @@ export const updateVehicleProviderSchema = z.object({
   rating: z.number().min(0).max(5).optional()
 });
 
+/** Price preview for a room and date range, before the booking is created. */
+export const roomQuoteSchema = z.object({
+  check_in: dateString('Invalid check-in date'),
+  check_out: dateString('Invalid check-out date'),
+  rooms: queryNumber(z.number().int().positive().max(20).optional().default(1)),
+  guests: queryNumber(z.number().int().positive().max(50).optional().default(1))
+});
+
 // Availability validation schemas
+
+/**
+ * The room is already identified by the request path (`/rooms/:id/...`), so the
+ * body copy is optional and only validated when present.
+ */
 export const createRoomAvailabilitySchema = z.object({
-  room_id: z.string().min(1, 'Room ID is required'),
-  date: z.string().datetime('Invalid date'),
+  room_id: z.string().min(1, 'Room ID is required').optional(),
+  date: dateString('Invalid date'),
   available_rooms: z.number().int().nonnegative('Available rooms must be non-negative'),
   price_override: z.number().positive('Price override must be positive').optional(),
   status: z.enum(['available', 'unavailable', 'partial']).optional()
+});
+
+/** Bulk upsert: one provider action can publish a whole date range. */
+export const bulkRoomAvailabilitySchema = z
+  .object({
+    room_id: z.string().min(1, 'Room ID is required').optional(),
+    start_date: dateString('Invalid start date'),
+    end_date: dateString('Invalid end date'),
+    available_rooms: z.number().int().nonnegative('Available rooms must be non-negative'),
+    price_override: z.number().positive('Price override must be positive').nullable().optional(),
+    status: z.enum(['available', 'unavailable', 'partial']).optional()
+  })
+  .refine((data) => Date.parse(data.end_date) > Date.parse(data.start_date), {
+    message: 'End date must be after start date',
+    path: ['end_date']
+  });
+
+/** Calendar lookup for a single room. */
+export const roomAvailabilityQuerySchema = z.object({
+  from: dateString('Invalid from date').optional(),
+  to: dateString('Invalid to date').optional()
 });
 
 export const createVehicleAvailabilitySchema = z.object({
@@ -254,21 +329,6 @@ export const updateLocationSchema = createLocationSchema.partial();
 
 // Search and filter schemas
 
-/**
- * Query strings always arrive as strings, so numeric query filters need
- * coercion before validation. Blank values are treated as "not provided" so an
- * empty filter input does not fail the request.
- */
-const queryNumber = <T extends z.ZodTypeAny>(schema: T) =>
-  z.preprocess((value) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    if (typeof value === 'string') {
-      const parsed = Number(value);
-      return Number.isNaN(parsed) ? value : parsed;
-    }
-    return value;
-  }, schema);
-
 export const destinationSearchSchema = z.object({
   page: queryNumber(z.number().int().positive().optional().default(1)),
   limit: queryNumber(z.number().int().positive().max(100).optional().default(20)),
@@ -286,12 +346,33 @@ export const hotelSearchSchema = z.object({
   limit: queryNumber(z.number().int().positive().max(100).optional().default(20)),
   destination_id: z.string().optional(),
   min_rating: queryNumber(z.number().min(0).max(5).optional()),
+  // Price filters apply to room prices, not a hotel field: the controller
+  // resolves them into a set of hotel ids that have a matching room.
   min_price: queryNumber(z.number().positive().optional()),
   max_price: queryNumber(z.number().positive().optional()),
+  guests: queryNumber(z.number().int().positive().optional()),
   search: z.string().optional(),
+  /**
+   * Optional stay window. When both dates are supplied the search only returns
+   * hotels that still have inventory for every night of the stay; a lone date is
+   * rejected by the controller because a half-range cannot be evaluated.
+   */
+  check_in: dateString('Invalid check-in date').optional(),
+  check_out: dateString('Invalid check-out date').optional(),
   sort_by: z.enum(['rating', 'price', 'name', 'created_at']).optional().default('rating'),
   sort_order: z.enum(['asc', 'desc']).optional().default('desc')
 });
+
+/** Hotel availability search across a date range and guest count. */
+export const hotelAvailabilitySearchSchema = hotelSearchSchema
+  .extend({
+    check_in: dateString('Invalid check-in date'),
+    check_out: dateString('Invalid check-out date')
+  })
+  .refine((data) => Date.parse(data.check_out) > Date.parse(data.check_in), {
+    message: 'Check-out must be after check-in',
+    path: ['check_out']
+  });
 
 // Type exports
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -305,6 +386,8 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
+export type BookingStatusInput = z.infer<typeof bookingStatusSchema>;
+export type RoomQuoteInput = z.infer<typeof roomQuoteSchema>;
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type CreatePhotographerInput = z.infer<typeof createPhotographerSchema>;
@@ -316,9 +399,12 @@ export type UpdateVehicleInput = z.infer<typeof updateVehicleSchema>;
 export type CreateVehicleProviderInput = z.infer<typeof createVehicleProviderSchema>;
 export type UpdateVehicleProviderInput = z.infer<typeof updateVehicleProviderSchema>;
 export type CreateRoomAvailabilityInput = z.infer<typeof createRoomAvailabilitySchema>;
+export type BulkRoomAvailabilityInput = z.infer<typeof bulkRoomAvailabilitySchema>;
+export type RoomAvailabilityQueryInput = z.infer<typeof roomAvailabilityQuerySchema>;
 export type CreateVehicleAvailabilityInput = z.infer<typeof createVehicleAvailabilitySchema>;
 export type DestinationSearchInput = z.infer<typeof destinationSearchSchema>;
 export type HotelSearchInput = z.infer<typeof hotelSearchSchema>;
+export type HotelAvailabilitySearchInput = z.infer<typeof hotelAvailabilitySearchSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;

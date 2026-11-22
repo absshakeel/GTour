@@ -2,14 +2,16 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { DestinationCta } from '@/components/destinations/DestinationCta';
 import { DestinationCard } from '@/components/destinations/DestinationCard';
 import { HotelCard } from '@/components/hotels/HotelCard';
+import { PhotographerCard } from '@/components/photographers/PhotographerCard';
 import { RatingBadge } from '@gtour/ui';
 import { ButtonLink } from '@gtour/ui';
 import { EmptyState } from '@gtour/ui';
 import { Reveal } from '@gtour/ui';
 import { destinationImage } from '@/lib/destination-image';
-import { fetchDestination, fetchDestinationPage, fetchHotelsForDestination } from '@/lib/server-api';
+import { fetchDestination, fetchDestinationPage, fetchHotelsForDestination, fetchPhotographers } from '@/lib/server-api';
 import { locationLabel, refName, type DestinationDto } from '@gtour/utils';
 
 export const revalidate = 120;
@@ -39,7 +41,8 @@ function formatCurrency(value?: number) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'BDT',
+    currencyDisplay: 'narrowSymbol',
     maximumFractionDigits: 0,
   }).format(value);
 }
@@ -112,13 +115,28 @@ export default async function DestinationDetailPage({ params }: PageProps) {
   const category = refName(destination.category_id);
   const budget = formatCurrency(destination.estimated_budget);
 
-  const [hotelsResult, suggestionsResult] = await Promise.all([
+  const [hotelsResult, photographersResult, suggestionsResult] = await Promise.all([
     fetchHotelsForDestination(destination._id),
+    fetchPhotographers(),
     fetchDestinationPage({ sort_by: 'rating', sort_order: 'desc', limit: 4 }),
   ]);
 
   const hotels = hotelsResult.ok ? hotelsResult.data : [];
   const suggestions = suggestionsResult.ok ? suggestionsResult.data.destinations : [];
+
+  /**
+   * Photographers declare the destination they are based in, so the page can
+   * show the ones that actually cover this place. Those with no destination set
+   * are treated as available everywhere and included too.
+   */
+  const photographers = photographersResult.ok
+    ? photographersResult.data.filter((photographer) => {
+        const linked = photographer.destination_id;
+        if (!linked) return true;
+        const linkedId = typeof linked === 'string' ? linked : linked._id;
+        return linkedId === destination._id;
+      })
+    : [];
 
   return (
     <article>
@@ -225,21 +243,7 @@ export default async function DestinationDetailPage({ params }: PageProps) {
                 {category ? <Fact label="Travel style" value={category} /> : null}
               </dl>
 
-              <div className="mt-8 rounded-panel border border-sea-200 bg-sea-100/50 p-6">
-                <h3 className="font-display text-xl font-semibold text-ink-900">
-                  Plan this trip with us
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-600">
-                  Create a free account to keep your shortlist and booking details in one place.
-                  Availability and final pricing are always confirmed on the server.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <ButtonLink href="/register">Create an account</ButtonLink>
-                  <ButtonLink href="/hotels" variant="outline">
-                    See stays
-                  </ButtonLink>
-                </div>
-              </div>
+              <DestinationCta destinationName={destination.name} />
             </div>
           </aside>
         </div>
@@ -280,6 +284,100 @@ export default async function DestinationDetailPage({ params }: PageProps) {
               ))}
             </ul>
           )}
+        </div>
+      </section>
+
+      <section aria-labelledby="destination-photographers" className="gtour-section">
+        <div className="gtour-container">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2
+                id="destination-photographers"
+                className="font-display text-3xl font-semibold text-ink-900"
+              >
+                Photographers in {destination.name}
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-500">
+                Travelling photographers who shoot around this destination. Service packages and
+                pricing are published by each photographer.
+              </p>
+            </div>
+            <Link
+              href="/photographers"
+              className="text-sm font-semibold text-sea-700 underline-offset-4 hover:underline"
+            >
+              See all photographers
+            </Link>
+          </div>
+
+          {photographers.length === 0 ? (
+            <div className="mt-8">
+              <EmptyState
+                title="No photographers listed here yet"
+                description={
+                  photographersResult.ok
+                    ? 'Nobody has published a photography service for this destination so far. Browse the full photographer directory in the meantime.'
+                    : photographersResult.message
+                }
+                action={
+                  <ButtonLink href="/photographers" variant="outline">
+                    Browse photographers
+                  </ButtonLink>
+                }
+              />
+            </div>
+          ) : (
+            <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {photographers.slice(0, 3).map((photographer, index) => (
+                <li key={photographer._id}>
+                  <Reveal delayMs={index * 70}>
+                    <PhotographerCard photographer={photographer} className="h-full" />
+                  </Reveal>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section aria-labelledby="destination-transport" className="gtour-section bg-sand-100">
+        <div className="gtour-container">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2
+                id="destination-transport"
+                className="font-display text-3xl font-semibold text-ink-900"
+              >
+                Vehicles around {destination.name}
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-500">
+                Cars, microbuses and 4x4s with a driver for the roads and rivers around this
+                destination.
+              </p>
+            </div>
+            <Link
+              href="/vehicles"
+              className="text-sm font-semibold text-sea-700 underline-offset-4 hover:underline"
+            >
+              See all vehicles
+            </Link>
+          </div>
+
+          <div className="mt-8 rounded-panel border border-ink-100 bg-white/80 p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+              Coming soon
+            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-600">
+              Destination-level vehicle availability is not switched on yet. Rental listings live on
+              the vehicles page, and a booking is always confirmed against the provider&apos;s own
+              calendar on the server.
+            </p>
+            <div className="mt-5">
+              <ButtonLink href="/vehicles" variant="outline">
+                Browse vehicles
+              </ButtonLink>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPhotographer extends Document {
+  user_id?: mongoose.Types.ObjectId;
   name: string;
   bio?: string;
   email?: string;
@@ -14,6 +15,12 @@ export interface IPhotographer extends Document {
 
 const PhotographerSchema = new Schema<IPhotographer>(
   {
+    // Links the listing to the provider account that owns it. Optional so
+    // listings created before this link existed keep working.
+    user_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
     name: {
       type: String,
       required: true,
@@ -49,6 +56,7 @@ const PhotographerSchema = new Schema<IPhotographer>(
   }
 );
 
+PhotographerSchema.index({ user_id: 1 });
 PhotographerSchema.index({ destination_id: 1 });
 PhotographerSchema.index({ rating: -1 });
 

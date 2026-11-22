@@ -61,7 +61,12 @@ export interface HotelDto {
   email?: string;
   images: string[];
   rating?: number;
+  owner_id?: string;
   destination_id: { _id: string; name: string } | string;
+  /** Cheapest nightly rate across this hotel's rooms, derived by the API. */
+  price_from?: number | null;
+  /** Highest nightly rate across this hotel's rooms, derived by the API. */
+  price_to?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +74,12 @@ export interface HotelDto {
 export interface HotelsResponse {
   success: boolean;
   hotels: HotelDto[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
 }
 
 export interface RoomDto {
@@ -78,6 +89,7 @@ export interface RoomDto {
   bed_type: string;
   capacity: number;
   price_per_night: number;
+  total_rooms: number;
   amenities?: string[];
   images?: string[];
   created_at: string;
@@ -87,6 +99,82 @@ export interface RoomDto {
 export interface RoomsResponse {
   success: boolean;
   rooms: RoomDto[];
+}
+
+/** One night of a stay as priced by the server. */
+export interface NightlyRateDto {
+  date: string;
+  available_rooms: number;
+  price_per_night: number;
+  status: 'available' | 'partial' | 'unavailable';
+}
+
+/** Authoritative quote returned by `GET /rooms/:id/quote`. */
+export interface RoomQuoteDto {
+  currency: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  rooms: number;
+  nightly: NightlyRateDto[];
+  price_per_night: number;
+  subtotal: number;
+  total: number;
+  available: boolean;
+  /** Most rooms the server can still hold for every night of this stay. */
+  max_rooms: number;
+}
+
+export interface RoomQuoteResponse {
+  success: boolean;
+  quote: RoomQuoteDto;
+}
+
+export interface RoomAvailabilityResponse {
+  success: boolean;
+  room_id: string;
+  from: string;
+  to: string;
+  nights: NightlyRateDto[];
+}
+
+/** One booking row as seen by a hotel owner in the provider queue. */
+export interface ProviderBookingDto {
+  _id: string;
+  booking_reference: string;
+  booking_type: 'hotel' | 'photography' | 'vehicle';
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  start_date: string;
+  end_date: string;
+  guest_count: number;
+  room_count: number;
+  total_amount: number;
+  special_requests?: string;
+  cancellation_reason?: string;
+  user_id: { _id: string; name?: string; email?: string } | string;
+  hotel_id?: { _id: string; name: string; address?: string } | string;
+  hotel_room_id?: { _id: string; room_type: string; bed_type?: string; price_per_night?: number } | string;
+  photography_service_id?:
+    | { _id: string; name?: string; price_per_session?: number; duration_hours?: number }
+    | string;
+  vehicle_id?: { _id: string; name?: string; type?: string; capacity?: number; price_per_day?: number } | string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProviderBookingsResponse {
+  success: boolean;
+  bookings: ProviderBookingDto[];
+}
+
+export interface HotelResponse {
+  success: boolean;
+  hotel: HotelDto;
+}
+
+export interface RoomResponse {
+  success: boolean;
+  room: RoomDto;
 }
 
 export interface PhotographerDto {
@@ -143,6 +231,14 @@ export interface AuthUserDto {
   account_status: string;
 }
 
+/** Booking lifecycle values, mirrored from the server state machine. */
+export type BookingStatusValue =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show';
+
 export interface LoginResponse {
   success: boolean;
   data: {
@@ -163,4 +259,63 @@ export function locationLabel(
 ): string | undefined {
   if (!value || typeof value === 'string') return undefined;
   return [value.region, value.country].filter(Boolean).join(', ') || value.name;
+}
+
+/** Photography service as returned by the provider workspace endpoint. */
+export interface MyPhotographyServiceDto {
+  _id: string;
+  photographer_id: string;
+  name: string;
+  description: string;
+  price_per_session: number;
+  duration_hours: number;
+  images?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Portfolio entry attached to the signed-in photographer. */
+export interface MyPortfolioDto {
+  _id: string;
+  photographer_id: string;
+  service_id: string;
+  images: string[];
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MyPhotographerResponse {
+  success: boolean;
+  photographer: PhotographerDto | null;
+  services: MyPhotographyServiceDto[];
+  portfolio: MyPortfolioDto[];
+  bookings: ProviderBookingDto[];
+}
+
+export interface VehicleProviderDto {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  description?: string;
+  rating?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleAvailabilityDto {
+  _id: string;
+  vehicle_id: string;
+  date: string;
+  available_units: number;
+  status: 'available' | 'unavailable' | 'partial';
+}
+
+export interface MyVehicleProviderResponse {
+  success: boolean;
+  provider: VehicleProviderDto | null;
+  vehicles: VehicleDto[];
+  availability: VehicleAvailabilityDto[];
+  bookings: ProviderBookingDto[];
 }

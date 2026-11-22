@@ -62,4 +62,75 @@ export const images = {
     photographer: img('/images/service-photographer.jpg', 'Photographer holding a camera while shooting outdoors'),
     vehicle: img('/images/service-vehicle.jpg', 'Camper van parked beside a scenic mountain road'),
   },
+  /**
+   * Bangladesh destination photography. These are the launch-market hero images:
+   * seed data references them by path so the web app renders real local assets
+   * instead of remote placeholders (see prompts/15 §9).
+   */
+  bangladesh: {
+    coxsBazar: img(
+      '/images/bd-coxs-bazar.jpg',
+      'Long sandy beach and rolling waves at Cox\'s Bazar, Bangladesh'
+    ),
+    saintMartin: img(
+      '/images/bd-saint-martin.jpg',
+      'Clear turquoise water and coral reef shallows off Saint Martin\'s Island, Bangladesh'
+    ),
+    sundarbans: img(
+      '/images/bd-sundarbans.jpg',
+      'Mangrove creeks and dense forest in the Sundarbans, Bangladesh'
+    ),
+    srimangal: img(
+      '/images/bd-srimangal.jpg',
+      'Terraced tea garden slopes in Srimangal, Sylhet, Bangladesh'
+    ),
+    bandarban: img(
+      '/images/bd-bandarban.jpg',
+      'Fog rolling over forested hill ridges in Bandarban, Bangladesh'
+    ),
+    rangamati: img(
+      '/images/bd-rangamati.jpg',
+      'Kaptai Lake widening between green hills near Rangamati, Bangladesh'
+    ),
+    kuakata: img(
+      '/images/bd-kuakata.jpg',
+      'Fishing boats on the shoreline at Kuakata, Bangladesh'
+    ),
+    lalbaghFort: img(
+      '/images/bd-lalbagh-fort.jpg',
+      'Mughal-era gatehouse and gardens of Lalbagh Fort in Dhaka, Bangladesh'
+    ),
+    ahsanManzil: img(
+      '/images/bd-ahsan-manzil.jpg',
+      'Ahsan Manzil pink palace on the bank of the Buriganga river in Dhaka, Bangladesh'
+    ),
+    sonargaon: img(
+      '/images/bd-sonargaon.jpg',
+      'Colonial-era merchant mansion at Sonargaon, Bangladesh'
+    ),
+    dhakaCity: img(
+      '/images/bd-dhaka-city.jpg',
+      'Dhaka city skyline and street life, Bangladesh'
+    ),
+    shatGombuj: img(
+      '/images/bd-shat-gombuj.jpg',
+      'Rows of domes on the Sixty Dome Mosque in Bagerhat, Bangladesh'
+    ),
+    paharpur: img(
+      '/images/bd-paharpur.jpg',
+      'Brick monastery ruins at Paharpur in Bogra, Bangladesh'
+    ),
+    jaflong: img(
+      '/images/bd-jaflong.jpg',
+      'Clear river water and stone collectors beneath the hills at Jaflong, Bangladesh'
+    ),
+    tanguarHaor: img(
+      '/images/bd-tanguar-haor.jpg',
+      'Fishing boats moored on the open water of Tanguar Haor, Bangladesh'
+    ),
+    ratargul: img(
+      '/images/bd-ratargul.jpg',
+      'Trees standing in the fresh water swamp forest of Ratargul, Bangladesh'
+    ),
+  },
 } as const;

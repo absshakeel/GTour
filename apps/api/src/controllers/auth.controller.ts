@@ -9,62 +9,6 @@ import { registerSchema, loginSchema, updateUserSchema } from '@gtour/validation
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ApiError } from '../utils/ApiError';
 
-/**
- * @swagger
- * /auth/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - name
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 minLength: 8
- *               name:
- *                 type: string
- *                 minLength: 2
- *               phone:
- *                 type: string
- *               role:
- *                 type: string
- *                 enum: [tourist, hotel_owner, photographer, vehicle_provider, admin]
- *               account_status:
- *                 type: string
- *                 enum: [active, suspended, pending_verification]
- *     responses:
- *       201:
- *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     token:
- *                       type: string
- *       409:
- *         description: User already exists
- *       500:
- *         description: Server error
- */
 export const register = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const validatedData = registerSchema.parse(req.body) as {
@@ -134,51 +78,6 @@ export const register = async (req: AuthRequest, res: Response, next: NextFuncti
   }
 };
 
-/**
- * @swagger
- * /auth/login:
- *   post:
- *     summary: Login user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     token:
- *                       type: string
- *       401:
- *         description: Invalid credentials
- *       403:
- *         description: Account not active
- *       500:
- *         description: Server error
- */
 export const login = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const validatedData = loginSchema.parse(req.body) as {
@@ -239,34 +138,6 @@ export const login = async (req: AuthRequest, res: Response, next: NextFunction)
   }
 };
 
-/**
- * @swagger
- * /auth/profile:
- *   get:
- *     summary: Get current user's account and profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Current user and profile
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     profile:
- *                       type: object
- *       401:
- *         description: Not authenticated
- */
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user) {
@@ -288,65 +159,6 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
-/**
- * @swagger
- * /auth/profile:
- *   put:
- *     summary: Update current user's account and profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 minLength: 2
- *               phone:
- *                 type: string
- *               bio:
- *                 type: string
- *                 maxLength: 500
- *               preferred_language:
- *                 type: string
- *               travel_preferences:
- *                 type: array
- *                 items:
- *                   type: string
- *               profile_image:
- *                 type: string
- *                 format: uri
- *               date_of_birth:
- *                 type: string
- *                 description: ISO date string
- *               address:
- *                 type: string
- *     responses:
- *       200:
- *         description: Profile updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     profile:
- *                       type: object
- *       400:
- *         description: Validation error
- *       401:
- *         description: Not authenticated
- */
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user) {
