@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { initCurrency } from './currency';
 
 /**
  * Load environment variables from `.env` files.
@@ -28,6 +29,12 @@ export function loadEnv(): void {
   }
 
   if (!loaded) dotenv.config();
+
+  // Currency is derived from the environment, so resolve it once the files have
+  // been read. `loadEnv()` is the single entry point used by the server, the
+  // seed scripts, and the test harness, which keeps the active currency
+  // consistent everywhere.
+  initCurrency();
 }
 
 export default loadEnv;

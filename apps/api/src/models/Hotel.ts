@@ -9,6 +9,7 @@ export interface IHotel extends Document {
   images: string[];
   rating?: number;
   destination_id: mongoose.Types.ObjectId;
+  owner_id: mongoose.Types.ObjectId;
   created_at: Date;
   updated_at: Date;
 }
@@ -50,6 +51,13 @@ const HotelSchema = new Schema<IHotel>(
       type: Schema.Types.ObjectId,
       ref: 'Destination',
       required: true
+    },
+    // Every property belongs to exactly one hotel owner account. Provider
+    // authorization and dashboard scoping are derived from this reference.
+    owner_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
     }
   },
   {
@@ -58,6 +66,7 @@ const HotelSchema = new Schema<IHotel>(
 );
 
 HotelSchema.index({ destination_id: 1 });
+HotelSchema.index({ owner_id: 1 });
 HotelSchema.index({ rating: -1 });
 HotelSchema.index({ name: 'text', description: 'text' });
 
