@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
 import { Button } from '@gtour/ui';
-import { Field, Input } from '@gtour/ui';
+import { Field, ImageUploader, Input } from '@gtour/ui';
 import { apiClient, getApiErrorMessage } from '@gtour/utils';
 
 type Option = { _id: string; name: string; country?: string; region?: string; icon?: string };
@@ -43,8 +43,6 @@ export default function DestinationForm({ mode, id }: { mode: 'create' | 'edit';
   const [bestVisitSeason, setBestVisitSeason] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [locationId, setLocationId] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
 
   const title = mode === 'create' ? 'Create destination' : 'Edit destination';
   const subtitle = mode === 'create'
@@ -80,39 +78,6 @@ export default function DestinationForm({ mode, id }: { mode: 'create' | 'edit';
       }
     })();
   }, [mode, id]);
-
-  async function uploadImages(files: FileList | File[] | null) {
-    const list = files ? Array.from(files) : [];
-    if (list.length === 0) return;
-    const imagesOnly = list.filter((f) => f.type.startsWith('image/'));
-    if (imagesOnly.length === 0) {
-      setError('Please select valid image files (JPG, PNG, WebP, GIF, AVIF).');
-      return;
-    }
-    setUploading(true);
-    setError(null);
-    try {
-      const uploaded: string[] = [];
-      for (const file of imagesOnly) {
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`"${file.name}" is too large. Maximum size is 10MB.`);
-        }
-        const form = new FormData();
-        form.append('file', file);
-        const { data } = await apiClient.post('/uploads/image', form);
-        if (data?.url) uploaded.push(data.url as string);
-      }
-      if (uploaded.length) {
-        setImages((prev) => [...prev, ...uploaded]);
-        setSuccess(`${uploaded.length} image${uploaded.length > 1 ? 's' : ''} uploaded successfully.`);
-        setTimeout(() => setSuccess(null), 2500);
-      }
-    } catch (e) {
-      setError(getApiErrorMessage(e));
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -212,7 +177,7 @@ export default function DestinationForm({ mode, id }: { mode: 'create' | 'edit';
                 </select>
               </div>
 
-              <Field label="Estimated budget (USD)" htmlFor="dest-budget">
+              <Field label="Estimated budget (BDT)" htmlFor="dest-budget">
                 <Input id="dest-budget" type="number" min="0" step="1" value={estimatedBudget} onChange={(e) => setEstimatedBudget(e.target.value)} className="bg-white" placeholder="e.g. 1200" />
               </Field>
 
@@ -221,50 +186,14 @@ export default function DestinationForm({ mode, id }: { mode: 'create' | 'edit';
               </Field>
 
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-sm font-semibold tracking-[-0.01em] text-ink-800">Images</label>
-                <div
-                  onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragActive(true); }}
-                  onDragLeave={() => setDragActive(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragActive(false); if (!uploading) uploadImages(e.dataTransfer.files); }}
-                  className={`rounded-2xl border-2 border-dashed p-5 transition ${dragActive ? 'border-sea-500 bg-sea-50/60' : 'border-sand-300 bg-sand-50/60'}`}
-                >
-                  <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-sea-600 shadow-sm ring-1 ring-sand-200">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 16.5v1A2.5 2.5 0 0 0 6.5 20h11A2.5 2.5 0 0 0 20 17.5v-1M12 4v11m0-11 4 4m-4-4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-ink-800">Drag & drop images here</p>
-                        <p className="text-xs text-ink-500">JPG, PNG, WebP, GIF, AVIF · up to 10MB each</p>
-                      </div>
-                    </div>
-                    <label className={`inline-flex cursor-pointer items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${uploading ? 'bg-sea-400' : 'bg-sea-600 hover:bg-sea-700'}`}>
-                      <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { uploadImages(e.target.files); e.target.value = ''; }} disabled={uploading} />
-                      {uploading ? (
-                        <span className="inline-flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Uploading…</span>
-                      ) : 'Choose files'}
-                    </label>
-                  </div>
-
-                  {images.length > 0 ? (
-                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                      {images.map((src, i) => (
-                        <div key={`${src}-${i}`} className="group relative overflow-hidden rounded-xl border border-sand-200 bg-white shadow-sm">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={src} alt={`Destination image ${i + 1}`} className="h-28 w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.25'; }} />
-                          {i === 0 ? <span className="absolute left-2 top-2 rounded-md bg-sea-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Cover</span> : null}
-                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
-                            <span className="truncate text-[10px] text-white/90">Image {i + 1}</span>
-                            <button type="button" onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-ink-800 hover:bg-white">Remove</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-xl border border-sand-200 bg-white/70 px-4 py-6 text-center text-sm text-ink-500">No images uploaded yet. Upload at least one image to continue.</div>
-                  )}
-                </div>
-                <p className="mt-1.5 text-xs text-ink-400">At least one image is required. First image is used as the cover. Images are uploaded and stored in Cloudflare R2.</p>
+                <ImageUploader
+                  id="dest-images"
+                  label="Images"
+                  required
+                  value={images}
+                  onChange={setImages}
+                  hint="At least one image is required. The first image is used as the cover photo."
+                />
               </div>
             </div>
 

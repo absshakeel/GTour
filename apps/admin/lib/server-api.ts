@@ -17,7 +17,7 @@ import type {
 const API_BASE_URL =
   process.env.API_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:5000/api/v1';
+  'http://localhost:5051/api/v1';
 
 export type FetchResult<T> = { ok: true; data: T } | { ok: false; message: string };
 
@@ -28,6 +28,8 @@ async function getJson<T>(path: string, revalidateSeconds = 60): Promise<FetchRe
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
       next: { revalidate: revalidateSeconds },
+      // Never let a stalled API block the server render.
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
