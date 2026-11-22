@@ -1,12 +1,46 @@
-/** Shared display formatting. All monetary values come from the API in USD. */
+/** Shared display formatting. All monetary values come from the API in BDT. */
 
-export function formatCurrency(value?: number | null): string | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return new Intl.NumberFormat('en-US', {
+export const DEFAULT_CURRENCY = 'BDT';
+
+const formatterCache = new Map<string, Intl.NumberFormat>();
+
+function formatterFor(currency: string, fractionDigits: number): Intl.NumberFormat {
+  const key = `${currency}:${fractionDigits}`;
+  const cached = formatterCache.get(key);
+  if (cached) return cached;
+
+  const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    maximumFractionDigits: fractionDigits,
+  });
+  formatterCache.set(key, formatter);
+  return formatter;
+}
+
+/**
+ * Formats a money amount for display.
+ *
+ * `narrowSymbol` renders `৳4,500` rather than the bare `BDT 4,500` the default
+ * display falls back to for BDT, while keeping Latin digits and thousands
+ * grouping. Callers that already pass a bare number keep working.
+ */
+export function formatCurrency(
+  value?: number | null,
+  currency: string = DEFAULT_CURRENCY
+): string | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return formatterFor(currency, 0).format(value);
+}
+
+/** Money including the minor unit, for receipts and price snapshots. */
+export function formatCurrencyPrecise(
+  value?: number | null,
+  currency: string = DEFAULT_CURRENCY
+): string | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return formatterFor(currency, 2).format(value);
 }
 
 export function formatNumber(value?: number | null): string {
