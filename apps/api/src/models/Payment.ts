@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { PaymentStatus } from '@gtour/shared-types';
+import { currencyCode } from '../config/currency';
 
 export interface IPayment extends Document {
   booking_id: mongoose.Types.ObjectId;
@@ -28,7 +29,7 @@ const PaymentSchema = new Schema<IPayment>(
     },
     currency: {
       type: String,
-      default: 'USD',
+      default: () => currencyCode(),
       length: 3
     },
     payment_method: {

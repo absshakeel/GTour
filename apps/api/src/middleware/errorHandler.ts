@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { ApiError } from '../utils/ApiError';
+
+/** Mongo surfaces schema/driver problems as typed errors that map to HTTP 400. */
+function isDatabaseValidationError(err: Error): boolean {
+  return err instanceof mongoose.Error.ValidationError || err instanceof mongoose.Error.CastError;
+}
 
 export const errorHandler = (
   err: Error,
@@ -16,6 +22,17 @@ export const errorHandler = (
         message: err.message,
         code: err.code,
         details: err.details
+      }
+    });
+    return;
+  }
+
+  if (isDatabaseValidationError(err)) {
+    res.status(400).json({
+      success: false,
+      error: {
+        message: 'The submitted data could not be saved',
+        code: 'DATABASE_VALIDATION_ERROR'
       }
     });
     return;

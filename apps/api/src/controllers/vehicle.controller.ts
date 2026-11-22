@@ -4,29 +4,6 @@ import VehicleAvailability from '../models/VehicleAvailability';
 import { createVehicleSchema, updateVehicleSchema, createVehicleAvailabilitySchema } from '@gtour/validation';
 import { ApiError } from '../utils/ApiError';
 
-/**
- * @swagger
- * /vehicles:
- *   get:
- *     summary: Get all vehicles
- *     tags: [Vehicles]
- *     responses:
- *       200:
- *         description: List of vehicles
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 vehicles:
- *                   type: array
- *                   items:
- *                     type: object
- *       500:
- *         description: Server error
- */
 export const getAllVehicles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const vehicles = await Vehicle.find()
@@ -42,36 +19,6 @@ export const getAllVehicles = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-/**
- * @swagger
- * /vehicles/{id}:
- *   get:
- *     summary: Get vehicle by ID
- *     tags: [Vehicles]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Vehicle ID
- *     responses:
- *       200:
- *         description: Vehicle details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 vehicle:
- *                   type: object
- *       404:
- *         description: Vehicle not found
- *       500:
- *         description: Server error
- */
 export const getVehicleById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const vehicle = await Vehicle.findById(req.params.id)

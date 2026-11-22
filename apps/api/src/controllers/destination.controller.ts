@@ -32,32 +32,6 @@ function handleZod(error: unknown): never | void {
   }
 }
 
-/**
- * @swagger
- * /destinations:
- *   get:
- *     summary: List destinations (public)
- *     description: Public list with pagination and stable sorting (same contract as /search). Kept for compatibility; the browse UI uses /destinations/search.
- *     tags: [Destinations]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer, default: 1 }
- *       - in: query
- *         name: limit
- *         schema: { type: integer, default: 20 }
- *       - in: query
- *         name: sort_by
- *         schema: { type: string, enum: [rating, views, name, created_at], default: rating }
- *       - in: query
- *         name: sort_order
- *         schema: { type: string, enum: [asc, desc], default: desc }
- *     responses:
- *       200:
- *         description: Paginated destinations
- *       400:
- *         description: Validation error
- */
 export const getAllDestinations = async (
   req: Request,
   res: Response,
@@ -99,25 +73,6 @@ export const getAllDestinations = async (
   }
 };
 
-/**
- * @swagger
- * /destinations/{id}:
- *   get:
- *     summary: Get destination by ID (public)
- *     tags: [Destinations]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Destination details
- *       400:
- *         description: Invalid ID
- *       404:
- *         description: Destination not found
- */
 export const getDestinationById = async (
   req: Request,
   res: Response,
@@ -142,46 +97,6 @@ export const getDestinationById = async (
   }
 };
 
-/**
- * @swagger
- * /destinations/search:
- *   get:
- *     summary: Search and filter destinations (public)
- *     tags: [Destinations]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer, default: 1 }
- *       - in: query
- *         name: limit
- *         schema: { type: integer, default: 20 }
- *       - in: query
- *         name: search
- *         schema: { type: string }
- *       - in: query
- *         name: category_id
- *         schema: { type: string }
- *       - in: query
- *         name: location_id
- *         schema: { type: string }
- *       - in: query
- *         name: min_rating
- *         schema: { type: number }
- *       - in: query
- *         name: max_budget
- *         schema: { type: number }
- *       - in: query
- *         name: sort_by
- *         schema: { type: string, enum: [rating, views, name, created_at], default: rating }
- *       - in: query
- *         name: sort_order
- *         schema: { type: string, enum: [asc, desc], default: desc }
- *     responses:
- *       200:
- *         description: Filtered, paginated destinations
- *       400:
- *         description: Validation error
- */
 export const searchDestinations = async (
   req: Request,
   res: Response,
@@ -231,41 +146,6 @@ export const searchDestinations = async (
   }
 };
 
-/**
- * @swagger
- * /destinations:
- *   post:
- *     summary: Create a destination (admin)
- *     tags: [Destinations]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name, description, images, category_id, location_id]
- *             properties:
- *               name: { type: string }
- *               description: { type: string }
- *               images:
- *                 type: array
- *                 items: { type: string, format: uri }
- *               estimated_budget: { type: number }
- *               best_visit_season: { type: string }
- *               category_id: { type: string }
- *               location_id: { type: string }
- *     responses:
- *       201:
- *         description: Destination created
- *       400:
- *         description: Validation or reference error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- */
 export const createDestination = async (
   req: Request,
   res: Response,
@@ -300,47 +180,6 @@ export const createDestination = async (
   }
 };
 
-/**
- * @swagger
- * /destinations/{id}:
- *   put:
- *     summary: Update a destination (admin)
- *     tags: [Destinations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name: { type: string }
- *               description: { type: string }
- *               images:
- *                 type: array
- *                 items: { type: string, format: uri }
- *               estimated_budget: { type: number }
- *               best_visit_season: { type: string }
- *               category_id: { type: string }
- *               location_id: { type: string }
- *     responses:
- *       200:
- *         description: Destination updated
- *       400:
- *         description: Validation or invalid ID
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Destination not found
- */
 export const updateDestination = async (
   req: Request,
   res: Response,
@@ -375,32 +214,6 @@ export const updateDestination = async (
   }
 };
 
-/**
- * @swagger
- * /destinations/{id}:
- *   delete:
- *     summary: Archive a destination (admin, soft delete)
- *     description: Soft-archives a destination. Public queries exclude archived items.
- *     tags: [Destinations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Destination archived successfully
- *       400:
- *         description: Invalid ID
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Destination not found
- */
 export const deleteDestination = async (
   req: Request,
   res: Response,
@@ -423,16 +236,6 @@ export const deleteDestination = async (
   }
 };
 
-/**
- * @swagger
- * /destinations/filters:
- *   get:
- *     summary: Get destination filter options (public)
- *     tags: [Destinations]
- *     responses:
- *       200:
- *         description: Categories and locations for filtering
- */
 export const getDestinationFilters = async (
   _req: Request,
   res: Response,

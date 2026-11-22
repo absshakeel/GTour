@@ -5,33 +5,6 @@ import User from '../models/User';
 import Profile from '../models/Profile';
 import { ApiError } from '../utils/ApiError';
 
-/**
- * @swagger
- * /users:
- *   get:
- *     summary: Get all users
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of users
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 users:
- *                   type: array
- *                   items:
- *                     type: object
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- */
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const users = await User.find().select('-password_hash').sort({ created_at: -1 });
@@ -44,45 +17,6 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-/**
- * @swagger
- * /users/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: User details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     profile:
- *                       type: object
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- */
 export const getUserById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const user = await User.findById(req.params.id).select('-password_hash');
@@ -103,31 +37,6 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-/**
- * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Delete a user (admin)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- */
 export const deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);

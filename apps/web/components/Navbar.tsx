@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { cn } from '@gtour/utils';
 import { ButtonLink } from '@gtour/ui';
-import { SESSION_EVENT, clearSession, readUser } from '@gtour/utils';
+import { SESSION_EVENT, clearSession, cn, readUser } from '@gtour/utils';
 import type { AuthUserDto } from '@gtour/utils';
+import { isCrossOrigin, roleHome, roleLabel } from '@/lib/role-home';
 
 const NAV_LINKS = [
   { href: '/destinations', label: 'Explore' },
@@ -14,6 +14,155 @@ const NAV_LINKS = [
   { href: '/photographers', label: 'Photographers' },
   { href: '/vehicles', label: 'Vehicles' },
 ] as const;
+
+const ICONS = {
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.6" />
+      <rect x="14" y="3" width="7" height="7" rx="1.6" />
+      <rect x="14" y="14" width="7" height="7" rx="1.6" />
+      <rect x="3" y="14" width="7" height="7" rx="1.6" />
+    </>
+  ),
+  building: <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5" />,
+  calendar: (
+    <>
+      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <path d="M8 3v3.5M16 3v3.5M3 9.5h18" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M4 8.5h3l1.5-2h7l1.5 2h3a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18v-8A1.5 1.5 0 0 1 4 8.5Z" />
+      <circle cx="12" cy="13.5" r="3" />
+    </>
+  ),
+  car: (
+    <>
+      <path d="M5 17h14M4 17v-4l2-5h12l2 5v4" />
+      <circle cx="7.5" cy="17.5" r="1.6" />
+      <circle cx="16.5" cy="17.5" r="1.6" />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20a8 8 0 0 1 16 0" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </>
+  ),
+  chevron: <path d="M5 7.5l5 5 5-5" />,
+} as const;
+
+function Icon({ path, className }: { path: keyof typeof ICONS; className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={cn('h-[18px] w-[18px] shrink-0', className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {ICONS[path]}
+    </svg>
+  );
+}
+
+interface AccountLink {
+  href: string;
+  label: string;
+  icon: keyof typeof ICONS;
+  description?: string;
+}
+
+/**
+ * Workspace links for the signed-in role. Every role gets exactly one dashboard
+ * entry; hotel owners additionally get a shortcut to their booking queue.
+ */
+function workspaceLinks(role?: string): AccountLink[] {
+  if (!role) return [];
+
+  if (role === 'hotel_owner') {
+    return [
+      {
+        href: '/dashboard/owner',
+        label: 'Owner dashboard',
+        icon: 'building',
+        description: 'Properties and rooms',
+      },
+      {
+        href: '/dashboard/owner/bookings',
+        label: 'Booking requests',
+        icon: 'calendar',
+        description: 'Confirm or decline stays',
+      },
+    ];
+  }
+  if (role === 'photographer') {
+    return [
+      {
+        href: '/dashboard/photographer',
+        label: 'Photographer dashboard',
+        icon: 'camera',
+        description: 'Services and shoots',
+      },
+    ];
+  }
+  if (role === 'vehicle_provider') {
+    return [
+      {
+        href: '/dashboard/vehicles',
+        label: 'Vehicle dashboard',
+        icon: 'car',
+        description: 'Fleet and trips',
+      },
+    ];
+  }
+  if (role === 'admin') {
+    return [
+      { href: roleHome('admin'), label: 'Admin console', icon: 'grid', description: 'Platform management' },
+    ];
+  }
+  return [{ href: '/dashboard', label: 'My dashboard', icon: 'grid', description: 'Bookings and trips' }];
+}
+
+function MenuLink({ item, onNavigate }: { item: AccountLink; onNavigate: () => void }) {
+  const content = (
+    <>
+      <Icon path={item.icon} className="text-ink-400" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-ink-900">{item.label}</span>
+        {item.description ? (
+          <span className="block truncate text-xs text-ink-500">{item.description}</span>
+        ) : null}
+      </span>
+    </>
+  );
+  const className =
+    'flex min-h-[2.75rem] w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-sand-100 focus-visible:bg-sand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-400';
+
+  if (isCrossOrigin(item.href)) {
+    return (
+      <a href={item.href} role="menuitem" className={className} onClick={onNavigate}>
+        {content}
+      </a>
+    );
+  }
+  return (
+    <Link href={item.href} role="menuitem" className={className} onClick={onNavigate}>
+      {content}
+    </Link>
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -72,10 +221,15 @@ export default function Navbar() {
     router.refresh();
   }
 
-  const firstName = user?.name?.trim().split(/\s+/)[0] || 'Account';
-  const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001';
-  const dashboardHref = user?.role === 'admin' ? adminUrl : '/dashboard';
-  const dashboardLabel = user?.role === 'admin' ? 'Admin panel' : 'Dashboard';
+  const displayName = user?.name?.trim() || 'Account';
+  const firstName = displayName.split(/\s+/)[0];
+  const initials = displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+  const links = workspaceLinks(user?.role);
+  const closeMenu = () => setUserMenuOpen(false);
 
   return (
     <header
@@ -138,54 +292,75 @@ export default function Navbar() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   type="button"
-                  onClick={() => setUserMenuOpen((o) => !o)}
+                  onClick={() => setUserMenuOpen((open) => !open)}
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
-                  className="flex items-center gap-2.5 rounded-pill border border-sand-300/80 bg-white/80 py-1.5 pl-1.5 pr-3 text-sm font-medium text-ink-800 shadow-[0_1px_0_rgba(12,28,44,0.02)] transition-all hover:border-sea-300 hover:bg-white"
+                  aria-label={`Account menu for ${displayName}`}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-pill border py-1.5 pl-1.5 pr-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-400 focus-visible:ring-offset-2 focus-visible:ring-offset-sand-50',
+                    userMenuOpen
+                      ? 'border-sea-300 bg-white shadow-soft'
+                      : 'border-sand-300/80 bg-white/80 text-ink-800 hover:border-sea-300 hover:bg-white'
+                  )}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sea-500 text-xs font-semibold text-white">
-                    {firstName.charAt(0).toUpperCase()}
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sea-500 text-[11px] font-bold tracking-wide text-white">
+                    {initials}
                   </span>
-                  <span className="max-w-[8rem] truncate">{firstName}</span>
-                  <svg aria-hidden="true" viewBox="0 0 20 20" className={cn('h-4 w-4 text-ink-400 transition-transform', userMenuOpen && 'rotate-180')} fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M5 7.5l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <span className="max-w-[8rem] truncate text-ink-900">{firstName}</span>
+                  <Icon
+                    path="chevron"
+                    className={cn(
+                      'h-4 w-4 text-ink-400 transition-transform duration-200',
+                      userMenuOpen && 'rotate-180'
+                    )}
+                  />
                 </button>
 
                 {userMenuOpen ? (
                   <div
                     role="menu"
-                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-sand-200/90 bg-white/98 p-2 shadow-[0_24px_60px_-24px_rgba(12,28,44,0.35)] backdrop-blur-md"
+                    aria-label="Account"
+                    className="absolute right-0 mt-2 w-72 origin-top-right overflow-hidden rounded-2xl border border-sand-200/90 bg-white p-2 shadow-[0_28px_70px_-28px_rgba(12,28,44,0.4)]"
                   >
-                    <div className="mb-1 rounded-xl bg-sand-50 px-3 py-2.5">
-                      <p className="truncate text-sm font-semibold text-ink-900">{user.name}</p>
-                      <p className="truncate text-xs text-ink-500">{user.email}</p>
-                      <p className="mt-1 inline-flex rounded-full bg-sea-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-sea-700">{user.role.replace('_', ' ')}</p>
+                    <div className="flex items-center gap-3 rounded-xl bg-sand-50 p-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sea-500 text-xs font-bold text-white">
+                        {initials}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink-900">{displayName}</p>
+                        <p className="truncate text-xs text-ink-500">{user.email}</p>
+                      </div>
                     </div>
-                    {user.role === 'admin' ? (
-                      <a href={dashboardHref} role="menuitem" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-sand-100 hover:text-ink-900">
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-ink-500" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /></svg>
-                        {dashboardLabel}
-                      </a>
-                    ) : (
-                      <Link href={dashboardHref} role="menuitem" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-sand-100 hover:text-ink-900">
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-ink-500" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /></svg>
-                        {dashboardLabel}
-                      </Link>
-                    )}
-                    <Link href="/profile" role="menuitem" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-sand-100 hover:text-ink-900">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4 text-ink-500" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20a8 8 0 0 1 16 0" /></svg>
-                      Profile settings
-                    </Link>
-                    <div className="my-1 h-px bg-sand-200" />
+                    <p className="mt-2 px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      {roleLabel(user.role)}
+                    </p>
+
+                    <div className="space-y-0.5">
+                      {links.map((item) => (
+                        <MenuLink key={`${item.href}-${item.label}`} item={item} onNavigate={closeMenu} />
+                      ))}
+                    </div>
+
+                    <div className="my-2 h-px bg-sand-200" />
+                    <MenuLink
+                      item={{
+                        href: '/profile',
+                        label: 'Profile settings',
+                        icon: 'user',
+                        description: 'Name, photo and preferences',
+                      }}
+                      onNavigate={closeMenu}
+                    />
+
+                    <div className="my-2 h-px bg-sand-200" />
                     <button
                       type="button"
                       role="menuitem"
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-terracotta-700 transition hover:bg-terracotta-50"
+                      className="flex min-h-[2.75rem] w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-terracotta-700 transition-colors hover:bg-terracotta-50 focus-visible:bg-terracotta-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terracotta-300"
                     >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
-                      Logout
+                      <Icon path="logout" className="text-terracotta-500" />
+                      Sign out
                     </button>
                   </div>
                 ) : null}
@@ -250,25 +425,45 @@ export default function Navbar() {
                 </Link>
               </li>
             ) : null}
+
             {user ? (
               <>
-                <li className="mt-2 rounded-2xl bg-sand-100/70 px-4 py-3">
-                  <p className="text-sm font-semibold text-ink-900">{user.name}</p>
-                  <p className="text-xs text-ink-500">{user.email}</p>
+                <li className="mt-2 flex items-center gap-3 rounded-2xl bg-sand-100/70 px-4 py-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sea-500 text-xs font-bold text-white">
+                    {initials}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink-900">{displayName}</p>
+                    <p className="truncate text-xs text-ink-500">{user.email}</p>
+                  </div>
                 </li>
+                {links.map((item) => (
+                  <li key={`m-${item.href}-${item.label}`}>
+                    {isCrossOrigin(item.href) ? (
+                      <a
+                        href={item.href}
+                        className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200"
+                      >
+                        <Icon path={item.icon} className="text-ink-400" />
+                        {item.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200"
+                      >
+                        <Icon path={item.icon} className="text-ink-400" />
+                        {item.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
                 <li>
-                  {user.role === 'admin' ? (
-                    <a href={dashboardHref} className="block rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200">
-                      {dashboardLabel}
-                    </a>
-                  ) : (
-                    <Link href={dashboardHref} className="block rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200">
-                      {dashboardLabel}
-                    </Link>
-                  )}
-                </li>
-                <li>
-                  <Link href="/profile" className="block rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200">
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:bg-sand-200"
+                  >
+                    <Icon path="user" className="text-ink-400" />
                     Profile settings
                   </Link>
                 </li>
@@ -276,9 +471,10 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-terracotta-700 transition-colors hover:bg-terracotta-50"
+                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-terracotta-700 transition-colors hover:bg-terracotta-50"
                   >
-                    Logout
+                    <Icon path="logout" className="text-terracotta-500" />
+                    Sign out
                   </button>
                 </li>
               </>

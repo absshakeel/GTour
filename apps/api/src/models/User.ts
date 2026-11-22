@@ -51,7 +51,7 @@ const UserSchema = new Schema<IUser>(
 );
 
 // Indexes
-UserSchema.index({ email: 1 });
+// `email` is already indexed by the path-level `unique: true` above.
 UserSchema.index({ role: 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

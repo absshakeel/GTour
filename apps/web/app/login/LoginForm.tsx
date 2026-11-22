@@ -8,6 +8,7 @@ import { Field, Input } from '@gtour/ui';
 import { apiClient, getApiErrorMessage } from '@gtour/utils';
 import { saveSession } from '@gtour/utils';
 import type { LoginResponse } from '@gtour/utils';
+import { isCrossOrigin, roleHome } from '@/lib/role-home';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -42,7 +43,15 @@ export default function LoginForm() {
       });
 
       saveSession(data.data.user, data.data.token);
-      router.push('/destinations');
+
+      // Admin accounts live on the separate admin origin, so a client-side
+      // route push would not reach them.
+      const home = roleHome(data.data.user.role);
+      if (isCrossOrigin(home)) {
+        window.location.assign(home);
+        return;
+      }
+      router.push(home);
       router.refresh();
     } catch (error) {
       setFormError(getApiErrorMessage(error));

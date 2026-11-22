@@ -8,7 +8,9 @@ import type {
   PhotographersResponse,
   PopulatedCategory,
   PopulatedLocation,
+  RoomAvailabilityResponse,
   RoomDto,
+  RoomQuoteResponse,
   RoomsResponse,
   VehicleDto,
   VehiclesResponse,
@@ -17,9 +19,23 @@ import type {
 const API_BASE_URL =
   process.env.API_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:5000/api/v1';
+  'http://localhost:5051/api/v1';
 
 export type FetchResult<T> = { ok: true; data: T } | { ok: false; message: string };
+
+/** Serialises defined, non-empty params into a `?...` query string (or `''`). */
+function buildQuery(params: Record<string, string | number | undefined | null>): string {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
+  });
+
+  const search = query.toString();
+  return search ? `?${search}` : '';
+}
 
 async function getJson<T>(path: string, revalidateSeconds = 60): Promise<FetchResult<T>> {
   const url = `${API_BASE_URL}${path}`;
@@ -28,6 +44,8 @@ async function getJson<T>(path: string, revalidateSeconds = 60): Promise<FetchRe
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
       next: { revalidate: revalidateSeconds },
+      // Never let a stalled API block the server render.
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
@@ -135,12 +153,9 @@ export async function fetchHotelsForDestination(
   destinationId: string,
   limit = 3
 ): Promise<FetchResult<HotelDto[]>> {
-  const query = new URLSearchParams({
-    destination_id: destinationId,
-    limit: String(limit),
-  });
+  const query = buildQuery({ destination_id: destinationId, limit });
 
-  const result = await getJson<HotelsResponse>(`/hotels/search?${query.toString()}`);
+  const result = await getJson<HotelsResponse>(`/hotels/search${query}`);
 
   return result.ok ? { ok: true, data: result.data.hotels ?? [] } : result;
 }
@@ -152,6 +167,44 @@ export async function fetchHotels(limit?: number): Promise<FetchResult<HotelDto[
 
   const hotels = result.data.hotels ?? [];
   return { ok: true, data: typeof limit === 'number' ? hotels.slice(0, limit) : hotels };
+}
+
+export type HotelSearchParams = {
+  search?: string;
+  destination_id?: string;
+  min_price?: number;
+  max_price?: number;
+  guests?: number;
+  min_rating?: number;
+  sort_by?: 'rating' | 'name' | 'created_at' | 'price';
+  sort_order?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+  /** Stay window; both dates must be supplied together for availability filtering. */
+  check_in?: string;
+  check_out?: string;
+};
+
+/** Hotel discovery with filters, price bounds and pagination metadata. */
+export async function fetchHotelSearch(
+  params: HotelSearchParams
+): Promise<FetchResult<{ hotels: HotelDto[]; total: number; pages: number; page: number }>> {
+  const query = buildQuery(params);
+  const result = await getJson<HotelsResponse>(`/hotels/search${query}`);
+
+  if (!result.ok) return result;
+
+  const hotels = result.data.hotels ?? [];
+
+  return {
+    ok: true,
+    data: {
+      hotels,
+      total: result.data.pagination?.total ?? hotels.length,
+      pages: result.data.pagination?.pages ?? 1,
+      page: result.data.pagination?.page ?? 1,
+    },
+  };
 }
 
 export async function fetchHotel(id: string): Promise<FetchResult<HotelDto>> {
@@ -169,6 +222,37 @@ export async function fetchRoomsByHotel(hotelId: string): Promise<FetchResult<Ro
   );
 
   return result.ok ? { ok: true, data: result.data.rooms ?? [] } : result;
+}
+
+/** Cached calendar of nightly availability for one room type. */
+export async function fetchRoomAvailability(
+  roomId: string,
+  from: string,
+  to: string
+): Promise<FetchResult<RoomAvailabilityResponse>> {
+  const query = new URLSearchParams({ from, to });
+  return getJson<RoomAvailabilityResponse>(
+    `/rooms/${encodeURIComponent(roomId)}/availability?${query.toString()}`,
+    0
+  );
+}
+
+/** Server-authoritative price for a stay. Never computed on the client. */
+export async function fetchRoomQuote(
+  roomId: string,
+  params: { check_in: string; check_out: string; rooms?: number; guests?: number }
+): Promise<FetchResult<RoomQuoteResponse>> {
+  const query = new URLSearchParams({
+    check_in: params.check_in,
+    check_out: params.check_out,
+    rooms: String(params.rooms ?? 1),
+    guests: String(params.guests ?? 1),
+  });
+
+  return getJson<RoomQuoteResponse>(
+    `/rooms/${encodeURIComponent(roomId)}/quote?${query.toString()}`,
+    0
+  );
 }
 
 export async function fetchPhotographers(): Promise<FetchResult<PhotographerDto[]>> {
