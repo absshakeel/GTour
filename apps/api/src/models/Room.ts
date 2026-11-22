@@ -6,6 +6,7 @@ export interface IRoom extends Document {
   bed_type: string;
   capacity: number;
   price_per_night: number;
+  total_rooms: number;
   amenities: string[];
   images: string[];
   created_at: Date;
@@ -38,6 +39,14 @@ const RoomSchema = new Schema<IRoom>(
       type: Number,
       required: true,
       min: 0
+    },
+    // Physical inventory for this room type. Used as the fallback nightly
+    // availability when no RoomAvailability override exists for a date.
+    total_rooms: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1
     },
     amenities: [
       {
