@@ -6,14 +6,17 @@ import VehicleProvider from '../models/VehicleProvider';
 import Booking from '../models/Booking';
 import User from '../models/User';
 import { createVehicleProviderSchema, updateVehicleProviderSchema } from '@gtour/validation';
+import { UserRole } from '@gtour/shared-types';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ApiError } from '../utils/ApiError';
+import { assertObjectId, parseOrThrow } from '../utils/http';
+import { startOfUtcDay } from '../utils/dates';
 
 /**
  * Resolves the provider record owned by the signed-in account, healing rows
  * that predate the `user_id` link by matching the account email once.
  */
-async function providerForUser(req: AuthRequest) {
+export async function providerForUser(req: AuthRequest) {
   if (!req.user) {
     throw new ApiError('Not authenticated', 401, 'NOT_AUTHENTICATED');
   }
@@ -35,95 +38,151 @@ async function providerForUser(req: AuthRequest) {
   return byEmail;
 }
 
-export const getAllProviders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/** Loads a provider and checks that the caller owns it. */
+async function loadOwnedProvider(req: AuthRequest, providerId: string) {
+  const provider = await VehicleProvider.findById(providerId);
+  if (!provider) {
+    throw new ApiError('Provider not found', 404, 'PROVIDER_NOT_FOUND');
+  }
+
+  if (req.user?.role === UserRole.ADMIN) return provider;
+
+  const owned = await providerForUser(req);
+  if (!owned || String(owned._id) !== String(provider._id)) {
+    throw new ApiError('Not authorized to manage this provider', 403, 'FORBIDDEN');
+  }
+
+  return provider;
+}
+
+export const getAllProviders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const providers = await VehicleProvider.find()
-      .sort({ rating: -1 });
+    const providers = await VehicleProvider.find().sort({ rating: -1 });
 
     res.json({
       success: true,
-      providers
+      providers,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const getProviderById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getProviderById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const provider = await VehicleProvider.findById(req.params.id);
+    const id = assertObjectId(req.params.id, 'provider id');
+    const provider = await VehicleProvider.findById(id);
 
     if (!provider) {
       throw new ApiError('Provider not found', 404, 'PROVIDER_NOT_FOUND');
     }
 
-    const vehicles = await Vehicle.find({ provider_id: req.params.id });
+    const vehicles = await Vehicle.find({ provider_id: provider._id });
 
     res.json({
       success: true,
       provider,
-      vehicles
+      vehicles,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const createVehicleProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * Creates the provider profile for the signed-in account.
+ *
+ * A provider only ever has one profile, so a second call is rejected instead of
+ * silently creating an orphan that `providerForUser` would never find again.
+ */
+export const createVehicleProvider = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const validatedData = createVehicleProviderSchema.parse(req.body);
+    if (!req.user) {
+      throw new ApiError('Not authenticated', 401, 'NOT_AUTHENTICATED');
+    }
 
-    const provider = await VehicleProvider.create(validatedData);
+    const data = parseOrThrow(createVehicleProviderSchema, req.body);
+
+    const existing = await VehicleProvider.findOne({ user_id: req.user.userId });
+    if (existing) {
+      throw new ApiError('This account already has a provider profile', 409, 'PROVIDER_EXISTS');
+    }
+
+    const provider = await VehicleProvider.create({
+      ...data,
+      user_id: new mongoose.Types.ObjectId(req.user.userId),
+    });
 
     res.status(201).json({
       success: true,
-      provider
+      provider,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const updateVehicleProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const updateVehicleProvider = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const validatedData = updateVehicleProviderSchema.parse(req.body);
+    const id = assertObjectId(req.params.id, 'provider id');
+    const data = parseOrThrow(updateVehicleProviderSchema, req.body);
 
-    const provider = await VehicleProvider.findByIdAndUpdate(
-      req.params.id,
-      validatedData,
-      { new: true, runValidators: true }
-    );
+    await loadOwnedProvider(req, id);
 
-    if (!provider) {
-      throw new ApiError('Provider not found', 404, 'PROVIDER_NOT_FOUND');
-    }
+    const provider = await VehicleProvider.findByIdAndUpdate(id, data, {
+      new: true,
+      runValidators: true,
+    });
 
     res.json({
       success: true,
-      provider
+      provider,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const deleteVehicleProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const deleteVehicleProvider = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const provider = await VehicleProvider.findByIdAndDelete(req.params.id);
-    if (!provider) {
-      throw new ApiError('Provider not found', 404, 'PROVIDER_NOT_FOUND');
-    }
+    const id = assertObjectId(req.params.id, 'provider id');
+    await loadOwnedProvider(req, id);
 
-    await Vehicle.deleteMany({ provider_id: req.params.id });
+    const vehicleIds = await Vehicle.distinct('_id', { provider_id: id });
+
+    await VehicleProvider.findByIdAndDelete(id);
+    await Vehicle.deleteMany({ provider_id: id });
+    await VehicleAvailability.deleteMany({ vehicle_id: { $in: vehicleIds } });
 
     res.json({
       success: true,
-      message: 'Provider deleted successfully'
+      message: 'Provider deleted successfully',
     });
   } catch (error) {
     next(error);
   }
 };
+
 /**
  * Provider workspace payload: the signed-in operator's profile, its fleet with
  * upcoming availability, and the vehicle bookings attached to that fleet.
@@ -131,7 +190,7 @@ export const deleteVehicleProvider = async (req: Request, res: Response, next: N
 export const getMyProviderProfile = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const provider = await providerForUser(req);
@@ -147,7 +206,7 @@ export const getMyProviderProfile = async (
     const [availability, bookings] = await Promise.all([
       VehicleAvailability.find({
         vehicle_id: { $in: vehicleIds },
-        date: { $gte: new Date(new Date().toISOString().slice(0, 10)) },
+        date: { $gte: startOfUtcDay(new Date()) },
       })
         .sort({ date: 1 })
         .limit(120),

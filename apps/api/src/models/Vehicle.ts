@@ -7,6 +7,8 @@ export interface IVehicle extends Document {
   price_per_day: number;
   features: string[];
   images: string[];
+  /** How many identical units the provider has. Defaults to 1. */
+  default_units?: number;
   provider_id: mongoose.Types.ObjectId;
   created_at: Date;
   updated_at: Date;
@@ -17,42 +19,49 @@ const VehicleSchema = new Schema<IVehicle>(
     name: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     type: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     capacity: {
       type: Number,
       required: true,
-      min: 1
+      min: 1,
     },
     price_per_day: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
     },
     features: [
       {
-        type: String
-      }
+        type: String,
+      },
     ],
     images: [
       {
-        type: String
-      }
+        type: String,
+      },
     ],
+    default_units: {
+      type: Number,
+      min: 1,
+      // A single vehicle is the common case, and the availability engine caps
+      // published units at this figure.
+      default: 1,
+    },
     provider_id: {
       type: Schema.Types.ObjectId,
       ref: 'VehicleProvider',
-      required: true
-    }
+      required: true,
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 VehicleSchema.index({ provider_id: 1 });

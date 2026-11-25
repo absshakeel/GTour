@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { getAllProviders, getProviderById, createVehicleProvider, updateVehicleProvider, deleteVehicleProvider, getMyProviderProfile } from '../controllers/vehicleProvider.controller';
+import {
+  getAllProviders,
+  getProviderById,
+  createVehicleProvider,
+  updateVehicleProvider,
+  deleteVehicleProvider,
+  getMyProviderProfile,
+} from '../controllers/vehicleProvider.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { UserRole } from '@gtour/shared-types';
 
@@ -12,7 +19,6 @@ const router: Router = Router();
  *     tags: [Vehicle Providers]
  *     summary: List vehicle providers
  *     description: Sorted by rating.
- *     security: []
  *     responses:
  *       200:
  *         description: All providers.
@@ -29,8 +35,7 @@ const router: Router = Router();
  *   post:
  *     tags: [Vehicle Providers]
  *     summary: Create a vehicle provider
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     requestBody:
  *       required: true
  *       content:
@@ -93,7 +98,12 @@ router.get('/', getAllProviders);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/mine', authenticate, authorize(UserRole.VEHICLE_PROVIDER, UserRole.ADMIN), getMyProviderProfile);
+router.get(
+  '/mine',
+  authenticate,
+  authorize(UserRole.VEHICLE_PROVIDER, UserRole.ADMIN),
+  getMyProviderProfile,
+);
 
 /**
  * @openapi
@@ -101,7 +111,6 @@ router.get('/mine', authenticate, authorize(UserRole.VEHICLE_PROVIDER, UserRole.
  *   get:
  *     tags: [Vehicle Providers]
  *     summary: Read one provider and its fleet
- *     security: []
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -124,8 +133,7 @@ router.get('/mine', authenticate, authorize(UserRole.VEHICLE_PROVIDER, UserRole.
  *   put:
  *     tags: [Vehicle Providers]
  *     summary: Update a provider
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     requestBody:
@@ -152,8 +160,7 @@ router.get('/mine', authenticate, authorize(UserRole.VEHICLE_PROVIDER, UserRole.
  *   delete:
  *     tags: [Vehicle Providers]
  *     summary: Delete a provider and its fleet
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -170,8 +177,23 @@ router.get('/mine', authenticate, authorize(UserRole.VEHICLE_PROVIDER, UserRole.
  *         $ref: '#/components/responses/NotFound'
  */
 router.get('/:id', getProviderById);
-router.post('/', createVehicleProvider);
-router.put('/:id', updateVehicleProvider);
-router.delete('/:id', deleteVehicleProvider);
+router.post(
+  '/',
+  authenticate,
+  authorize(UserRole.VEHICLE_PROVIDER, UserRole.ADMIN),
+  createVehicleProvider,
+);
+router.put(
+  '/:id',
+  authenticate,
+  authorize(UserRole.VEHICLE_PROVIDER, UserRole.ADMIN),
+  updateVehicleProvider,
+);
+router.delete(
+  '/:id',
+  authenticate,
+  authorize(UserRole.VEHICLE_PROVIDER, UserRole.ADMIN),
+  deleteVehicleProvider,
+);
 
 export default router;

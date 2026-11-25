@@ -17,34 +17,34 @@ const VehicleProviderSchema = new Schema<IVehicleProvider>(
     // existing rows keep working.
     user_id: {
       type: Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
     },
     name: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     email: {
       type: String,
-      trim: true
+      trim: true,
     },
     phone: {
       type: String,
-      trim: true
+      trim: true,
     },
     description: {
       type: String,
-      maxlength: 500
+      maxlength: 500,
     },
     rating: {
       type: Number,
       min: 0,
-      max: 5
-    }
+      max: 5,
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 VehicleProviderSchema.index({ user_id: 1 });
