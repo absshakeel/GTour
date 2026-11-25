@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { getAllServices, getServiceById, createPhotographyService, updatePhotographyService, deletePhotographyService } from '../controllers/photographyService.controller';
+import {
+  getAllServices,
+  getServiceById,
+  createPhotographyService,
+  updatePhotographyService,
+  deletePhotographyService,
+} from '../controllers/photographyService.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { UserRole } from '@gtour/shared-types';
 
 const router: Router = Router();
 
@@ -10,7 +18,6 @@ const router: Router = Router();
  *     tags: [Photography Services]
  *     summary: List photography packages
  *     description: Sorted by price. The photographer is populated with `name` and `profile_image`.
- *     security: []
  *     responses:
  *       200:
  *         description: All packages.
@@ -27,8 +34,7 @@ const router: Router = Router();
  *   post:
  *     tags: [Photography Services]
  *     summary: Create a photography package
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     requestBody:
  *       required: true
  *       content:
@@ -57,7 +63,6 @@ router.get('/', getAllServices);
  *   get:
  *     tags: [Photography Services]
  *     summary: Read one package and its portfolio
- *     security: []
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -80,8 +85,7 @@ router.get('/', getAllServices);
  *   put:
  *     tags: [Photography Services]
  *     summary: Update a photography package
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     requestBody:
@@ -108,8 +112,7 @@ router.get('/', getAllServices);
  *   delete:
  *     tags: [Photography Services]
  *     summary: Delete a photography package and its portfolio
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning provider (or an admin) may perform this action.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -126,8 +129,23 @@ router.get('/', getAllServices);
  *         $ref: '#/components/responses/NotFound'
  */
 router.get('/:id', getServiceById);
-router.post('/', createPhotographyService);
-router.put('/:id', updatePhotographyService);
-router.delete('/:id', deletePhotographyService);
+router.post(
+  '/',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  createPhotographyService,
+);
+router.put(
+  '/:id',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  updatePhotographyService,
+);
+router.delete(
+  '/:id',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  deletePhotographyService,
+);
 
 export default router;

@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { getAllPhotographers, getPhotographerById, createPhotographer, updatePhotographer, deletePhotographer, getMyPhotographerProfile } from '../controllers/photographer.controller';
+import {
+  getAllPhotographers,
+  getPhotographerById,
+  createPhotographer,
+  updatePhotographer,
+  deletePhotographer,
+  getMyPhotographerProfile,
+} from '../controllers/photographer.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { UserRole } from '@gtour/shared-types';
 
@@ -12,7 +19,6 @@ const router: Router = Router();
  *     tags: [Photographers]
  *     summary: List photographers
  *     description: Sorted by rating. Each row has its destination populated so the directory can be filtered by destination client-side.
- *     security: []
  *     responses:
  *       200:
  *         description: All photographers.
@@ -30,10 +36,8 @@ const router: Router = Router();
  *     tags: [Photographers]
  *     summary: Create a photographer profile
  *     description: |
- *       ⚠️ Currently unauthenticated and unowned — the record is created without
- *       a `user_id`, so it cannot be reached from a provider workspace. Securing
- *       this route is tracked as a follow-up.
- *     security: []
+ *       Creates the profile for the signed-in account, so a second call returns
+ *       `409 PHOTOGRAPHER_EXISTS` rather than creating an orphan.
  *     requestBody:
  *       required: true
  *       content:
@@ -97,7 +101,12 @@ router.get('/', getAllPhotographers);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/mine', authenticate, authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN), getMyPhotographerProfile);
+router.get(
+  '/mine',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  getMyPhotographerProfile,
+);
 
 /**
  * @openapi
@@ -105,7 +114,6 @@ router.get('/mine', authenticate, authorize(UserRole.PHOTOGRAPHER, UserRole.ADMI
  *   get:
  *     tags: [Photographers]
  *     summary: Read one photographer and their services
- *     security: []
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -128,8 +136,7 @@ router.get('/mine', authenticate, authorize(UserRole.PHOTOGRAPHER, UserRole.ADMI
  *   put:
  *     tags: [Photographers]
  *     summary: Update a photographer profile
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning photographer (or an admin) may change this profile.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     requestBody:
@@ -156,8 +163,7 @@ router.get('/mine', authenticate, authorize(UserRole.PHOTOGRAPHER, UserRole.ADMI
  *   delete:
  *     tags: [Photographers]
  *     summary: Delete a photographer profile and its services
- *     description: '⚠️ Currently unauthenticated — no ownership check yet; tracked as a follow-up.'
- *     security: []
+ *     description: Only the owning photographer (or an admin) may change this profile.
  *     parameters:
  *       - $ref: '#/components/parameters/MongoId'
  *     responses:
@@ -174,8 +180,23 @@ router.get('/mine', authenticate, authorize(UserRole.PHOTOGRAPHER, UserRole.ADMI
  *         $ref: '#/components/responses/NotFound'
  */
 router.get('/:id', getPhotographerById);
-router.post('/', createPhotographer);
-router.put('/:id', updatePhotographer);
-router.delete('/:id', deletePhotographer);
+router.post(
+  '/',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  createPhotographer,
+);
+router.put(
+  '/:id',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  updatePhotographer,
+);
+router.delete(
+  '/:id',
+  authenticate,
+  authorize(UserRole.PHOTOGRAPHER, UserRole.ADMIN),
+  deletePhotographer,
+);
 
 export default router;

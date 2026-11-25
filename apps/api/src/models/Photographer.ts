@@ -19,41 +19,41 @@ const PhotographerSchema = new Schema<IPhotographer>(
     // listings created before this link existed keep working.
     user_id: {
       type: Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
     },
     name: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     bio: {
       type: String,
-      maxlength: 500
+      maxlength: 500,
     },
     email: {
       type: String,
-      trim: true
+      trim: true,
     },
     phone: {
       type: String,
-      trim: true
+      trim: true,
     },
     profile_image: {
-      type: String
+      type: String,
     },
     rating: {
       type: Number,
       min: 0,
-      max: 5
+      max: 5,
     },
     destination_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Destination'
-    }
+      ref: 'Destination',
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 PhotographerSchema.index({ user_id: 1 });
