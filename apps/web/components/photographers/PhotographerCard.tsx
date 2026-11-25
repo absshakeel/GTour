@@ -1,14 +1,11 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Badge, RatingBadge } from '@gtour/ui';
 import { cn } from '@gtour/utils';
 import { serviceImage } from '@/lib/service-image';
 import { refName, type PhotographerDto } from '@gtour/utils';
 
-/**
- * Photographer card. Deliberately not a link: photographer profile routes are
- * not part of the current API surface, and §5 forbids controls that lead
- * nowhere.
- */
+/** Photographer card. The whole card links to the bookable profile route. */
 export function PhotographerCard({
   photographer,
   className,
@@ -20,10 +17,11 @@ export function PhotographerCard({
   const destination = refName(photographer.destination_id);
 
   return (
-    <article
+    <Link
+      href={`/photographers/${photographer._id}`}
       className={cn(
-        'group flex h-full flex-col overflow-hidden rounded-card border border-ink-100 bg-white shadow-soft',
-        className
+        'group flex h-full flex-col overflow-hidden rounded-card border border-ink-100 bg-white shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-400',
+        className,
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-sand-200">
@@ -58,6 +56,6 @@ export function PhotographerCard({
           {destination ? <Badge tone="neutral">{destination}</Badge> : null}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
