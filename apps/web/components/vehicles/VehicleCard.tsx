@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Badge } from '@gtour/ui';
 import { cn } from '@gtour/utils';
 import { formatCurrency } from '@/lib/format';
@@ -7,7 +8,7 @@ import { refName, type VehicleDto } from '@gtour/utils';
 
 /**
  * Vehicle card. Pricing is real (`price_per_day`) — vehicle listings are
- * ordered cheapest first by the API.
+ * ordered cheapest first by the API. Links to the bookable rental route.
  */
 export function VehicleCard({ vehicle, className }: { vehicle: VehicleDto; className?: string }) {
   const image = serviceImage('vehicle', vehicle);
@@ -15,10 +16,11 @@ export function VehicleCard({ vehicle, className }: { vehicle: VehicleDto; class
   const price = formatCurrency(vehicle.price_per_day);
 
   return (
-    <article
+    <Link
+      href={`/vehicles/${vehicle._id}`}
       className={cn(
-        'group flex h-full flex-col overflow-hidden rounded-card border border-ink-100 bg-white shadow-soft',
-        className
+        'group flex h-full flex-col overflow-hidden rounded-card border border-ink-100 bg-white shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-400',
+        className,
       )}
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-sand-200">
@@ -61,6 +63,6 @@ export function VehicleCard({ vehicle, className }: { vehicle: VehicleDto; class
           </ul>
         ) : null}
       </div>
-    </article>
+    </Link>
   );
 }
