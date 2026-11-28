@@ -37,7 +37,12 @@ export function DestinationCta({ destinationName }: { destinationName: string })
     // Reserve the same footprint so the sidebar does not jump once the session
     // is known. Server-rendered visitors almost always land on the signed-out
     // branch, so this skeleton is only ever visible for a frame.
-    return <div className="mt-8 h-52 rounded-panel border border-sea-200 bg-sea-100/40" aria-hidden="true" />;
+    return (
+      <div
+        className="mt-8 h-52 rounded-panel border border-sea-200 bg-sea-100/40"
+        aria-hidden="true"
+      />
+    );
   }
 
   if (!user) {

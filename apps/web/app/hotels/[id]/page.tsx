@@ -2,20 +2,25 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import BookingPanel from './BookingPanel';
+import BookingPanel, { type BookingPrefill } from './BookingPanel';
 import { RoomCard } from '@/components/hotels/RoomCard';
-import { RatingBadge } from '@gtour/ui';
-import { ButtonLink } from '@gtour/ui';
-import { EmptyState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
-import { formatNumber } from '@/lib/format';
+import { ButtonLink, EmptyState, RatingBadge, Reveal } from '@gtour/ui';
+import { formatNumber } from '@gtour/utils';
 import { images } from '@/lib/images';
 import { fetchHotel, fetchRoomsByHotel } from '@/lib/server-api';
 import { refName } from '@gtour/utils';
 
 export const revalidate = 120;
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+/** Reads the first value of a query parameter, ignoring repeated keys. */
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 const STAY_FALLBACKS = [images.stays.resort, images.stays.room, images.stays.terrace];
 
@@ -23,7 +28,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const result = await fetchHotel(id);
 
-  if (!result.ok) return { title: 'Stay not found' };
+  // A failed fetch leaves the page title generic; the page body reports the outage.
+  if (!result.ok) return { title: result.notFound ? 'Stay not found' : 'Stay unavailable' };
 
   const hotel = result.data;
 
@@ -33,11 +39,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function HotelDetailPage({ params }: PageProps) {
+export default async function HotelDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const query = await searchParams;
 
   const result = await fetchHotel(id);
-  if (!result.ok) notFound();
+  // Only a real 404 becomes a 404 page; if the API is unreachable this throws and
+  // the app's error boundary offers a retry instead of claiming the stay is gone.
+  if (!result.ok) {
+    if (result.notFound) notFound();
+    throw new Error(result.message);
+  }
 
   const hotel = result.data;
   const roomsResult = await fetchRoomsByHotel(hotel._id);
@@ -45,12 +57,11 @@ export default async function HotelDetailPage({ params }: PageProps) {
 
   const destination = refName(hotel.destination_id);
   const uploaded = (hotel.images ?? []).filter(
-    (image): image is string => typeof image === 'string' && image.trim().length > 0
+    (image): image is string => typeof image === 'string' && image.trim().length > 0,
   );
 
   const gallery = uploaded.length > 0 ? uploaded.slice(0, 4) : [];
-  const heroImage =
-    gallery[0] ?? STAY_FALLBACKS[hotel.name.length % STAY_FALLBACKS.length].src;
+  const heroImage = gallery[0] ?? STAY_FALLBACKS[hotel.name.length % STAY_FALLBACKS.length].src;
   const heroAlt = `${hotel.name} — accommodation photography`;
   const supporting = gallery.filter((image) => image !== heroImage);
 
@@ -58,6 +69,17 @@ export default async function HotelDetailPage({ params }: PageProps) {
     .map((room) => room.price_per_night)
     .filter((price) => typeof price === 'number' && price > 0)
     .sort((a, b) => a - b)[0];
+
+  // A chat draft arrives as a query string. It only prefills the booking form;
+  // the server prices and validates the stay again when the form is submitted.
+  const prefill: BookingPrefill = {
+    room: firstParam(query.room),
+    checkIn: firstParam(query.check_in),
+    checkOut: firstParam(query.check_out),
+    rooms: firstParam(query.rooms),
+    guests: firstParam(query.guests),
+  };
+  const hasPrefill = Boolean(prefill.room || prefill.checkIn || prefill.checkOut);
 
   return (
     <article>
@@ -161,7 +183,10 @@ export default async function HotelDetailPage({ params }: PageProps) {
                 {hotel.phone ? (
                   <li>
                     <span className="text-ink-500">Phone:</span>{' '}
-                    <a className="text-sea-700 underline-offset-4 hover:underline" href={`tel:${hotel.phone}`}>
+                    <a
+                      className="text-sea-700 underline-offset-4 hover:underline"
+                      href={`tel:${hotel.phone}`}
+                    >
                       {hotel.phone}
                     </a>
                   </li>
@@ -169,7 +194,10 @@ export default async function HotelDetailPage({ params }: PageProps) {
                 {hotel.email ? (
                   <li>
                     <span className="text-ink-500">Email:</span>{' '}
-                    <a className="text-sea-700 underline-offset-4 hover:underline" href={`mailto:${hotel.email}`}>
+                    <a
+                      className="text-sea-700 underline-offset-4 hover:underline"
+                      href={`mailto:${hotel.email}`}
+                    >
                       {hotel.email}
                     </a>
                   </li>
@@ -201,8 +229,20 @@ export default async function HotelDetailPage({ params }: PageProps) {
 
           <aside className="lg:col-span-5">
             <div className="lg:sticky lg:top-24">
+              {hasPrefill && rooms.length > 0 ? (
+                <div
+                  role="status"
+                  className="mb-4 rounded-panel border border-sea-200 bg-sea-100/60 p-4 text-sm text-ink-700"
+                >
+                  <p className="font-semibold text-ink-900">Draft filled in by the assistant</p>
+                  <p className="mt-1 leading-relaxed">
+                    Check the dates and room below, then send the request. The price and
+                    availability are calculated again when you submit.
+                  </p>
+                </div>
+              ) : null}
               {rooms.length > 0 ? (
-                <BookingPanel rooms={rooms} />
+                <BookingPanel rooms={rooms} prefill={prefill} />
               ) : (
                 <div className="rounded-panel border border-ink-100 bg-white p-6 shadow-soft">
                   <h2 className="font-display text-xl font-semibold text-ink-900">

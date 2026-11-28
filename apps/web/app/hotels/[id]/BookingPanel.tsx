@@ -2,12 +2,19 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button } from '@gtour/ui';
-import { Field, Input, Select, Textarea } from '@gtour/ui';
-import { apiClient, getApiErrorMessage } from '@gtour/utils';
-import { dateInputToIso, formatCurrency, nightsBetween, toDateInputValue } from '@/lib/format';
-import { readToken, readUser } from '@gtour/utils';
+import { Button, Field, Input, Select, Textarea } from '@gtour/ui';
+import {
+  apiClient,
+  dateInputToIso,
+  formatCurrency,
+  getApiErrorMessage,
+  nightsBetween,
+  readToken,
+  readUser,
+  toDateInputValue,
+} from '@gtour/utils';
 import type { AuthUserDto, RoomDto, RoomQuoteDto } from '@gtour/utils';
+import CheckoutDialog from '@/components/payment/CheckoutDialog';
 
 interface BookingResponse {
   success: boolean;
@@ -32,6 +39,23 @@ function formatDate(iso: string): string {
   return Number.isNaN(date.getTime()) ? iso : DATE_FORMAT.format(date);
 }
 
+/** Values a prefilled link (for example a chat booking draft) may supply. */
+export interface BookingPrefill {
+  room?: string;
+  checkIn?: string;
+  checkOut?: string;
+  rooms?: string;
+  guests?: string;
+}
+
+/** Only accepts a real room of this hotel, so a stray query string cannot pick another property's inventory. */
+function usableRoom(rooms: RoomDto[], candidate?: string): string {
+  if (candidate && rooms.some((room) => room._id === candidate)) return candidate;
+  return rooms[0]?._id ?? '';
+}
+
+const DATE_INPUT = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * Hotel booking panel.
  *
@@ -39,19 +63,37 @@ function formatDate(iso: string): string {
  * quote whenever the stay changes and only ever sends the room, dates and guest
  * count — never a total, which the server recomputes before accepting the
  * booking. Nothing is presented as confirmed until `POST /bookings` returns.
+ *
+ * A prefill only seeds the inputs. It is not a booking: the visitor still has to
+ * submit the form, and the server prices and validates the stay again.
  */
-export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
+export default function BookingPanel({
+  rooms,
+  prefill,
+}: {
+  rooms: RoomDto[];
+  prefill?: BookingPrefill;
+}) {
   const [user, setUser] = useState<AuthUserDto | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const [roomId, setRoomId] = useState(rooms[0]?._id ?? '');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [guestCount, setGuestCount] = useState('1');
-  const [roomCount, setRoomCount] = useState('1');
+  const [roomId, setRoomId] = useState(usableRoom(rooms, prefill?.room));
+  const [startDate, setStartDate] = useState(
+    prefill?.checkIn && DATE_INPUT.test(prefill.checkIn) ? prefill.checkIn : '',
+  );
+  const [endDate, setEndDate] = useState(
+    prefill?.checkOut && DATE_INPUT.test(prefill.checkOut) ? prefill.checkOut : '',
+  );
+  const [guestCount, setGuestCount] = useState(
+    prefill?.guests && Number(prefill.guests) > 0 ? prefill.guests : '1',
+  );
+  const [roomCount, setRoomCount] = useState(
+    prefill?.rooms && Number(prefill.rooms) > 0 ? prefill.rooms : '1',
+  );
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<BookingResponse['booking'] | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const [quote, setQuote] = useState<RoomQuoteDto | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -103,7 +145,7 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
               rooms,
               guests: Number(guestCount) || 1,
             },
-          }
+          },
         );
 
       let { data } = await fetchQuote(requested);
@@ -169,7 +211,7 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
           room_count: Number(roomCount) || 1,
           special_requests: specialRequests.trim() || undefined,
         },
-        { headers: { Authorization: `Bearer ${readToken() ?? ''}` } }
+        { headers: { Authorization: `Bearer ${readToken() ?? ''}` } },
       );
 
       setConfirmed(data.booking);
@@ -210,15 +252,18 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
           </div>
         </dl>
         <p className="mt-5 text-xs leading-relaxed text-ink-500">
-          No card details are collected here — payment is arranged separately. Keep this reference
-          for support.
+          Keep this reference for support. Nothing is charged until the property&rsquo;s payment
+          policy allows it — open the payment step to see what is owed.
         </p>
-        <div className="mt-5 flex flex-wrap gap-5">
+        <div className="mt-5 flex flex-wrap items-center gap-5">
+          <Button size="sm" onClick={() => setCheckoutOpen(true)}>
+            Continue to payment
+          </Button>
           <Link
-            href="/destinations"
+            href="/dashboard"
             className="text-sm font-semibold text-sea-700 underline-offset-4 hover:underline"
           >
-            Keep exploring destinations
+            Go to my dashboard
           </Link>
           <button
             type="button"
@@ -233,6 +278,14 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
             Book another room
           </button>
         </div>
+
+        {checkoutOpen ? (
+          <CheckoutDialog
+            bookingId={confirmed._id}
+            bookingReference={confirmed.booking_reference}
+            onClose={() => setCheckoutOpen(false)}
+          />
+        ) : null}
       </div>
     );
   }
@@ -417,7 +470,9 @@ export default function BookingPanel({ rooms }: { rooms: RoomDto[] }) {
           type="submit"
           size="lg"
           className="w-full"
-          disabled={submitting || quoting || rooms.length === 0 || (quote ? !quote.available : false)}
+          disabled={
+            submitting || quoting || rooms.length === 0 || (quote ? !quote.available : false)
+          }
         >
           {submitting ? 'Sending request...' : 'Request this room'}
         </Button>

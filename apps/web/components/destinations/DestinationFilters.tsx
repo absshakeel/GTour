@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button } from '@gtour/ui';
-import { Field, Input, Select } from '@gtour/ui';
+import { Button, Field, Input, Select } from '@gtour/ui';
 import type { PopulatedCategory, PopulatedLocation } from '@gtour/utils';
 
 const SORT_OPTIONS = [

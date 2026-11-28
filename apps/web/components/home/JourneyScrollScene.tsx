@@ -11,10 +11,30 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { id: 'source', label: 'Start', title: 'Choose a place', note: 'Search destinations that match your style.' },
-  { id: 'plan', label: 'Plan', title: 'Set your dates', note: 'Keep dates and guests with your search.' },
-  { id: 'stay', label: 'Stay', title: 'Find services', note: 'Compare stays, guides, and transport.' },
-  { id: 'arrive', label: 'Arrive', title: 'Travel ready', note: 'Details are confirmed by real services.' },
+  {
+    id: 'source',
+    label: 'Start',
+    title: 'Choose a place',
+    note: 'Search destinations that match your style.',
+  },
+  {
+    id: 'plan',
+    label: 'Plan',
+    title: 'Set your dates',
+    note: 'Keep dates and guests with your search.',
+  },
+  {
+    id: 'stay',
+    label: 'Stay',
+    title: 'Find services',
+    note: 'Compare stays, guides, and transport.',
+  },
+  {
+    id: 'arrive',
+    label: 'Arrive',
+    title: 'Travel ready',
+    note: 'Details are confirmed by real services.',
+  },
 ];
 
 function clamp(n: number, min = 0, max = 1) {
@@ -70,7 +90,10 @@ export default function JourneyScrollScene({ className }: { className?: string }
     };
   }, []);
 
-  const activeIndex = useMemo(() => Math.min(STEPS.length - 1, Math.floor(progress * STEPS.length + 0.0001)), [progress]);
+  const activeIndex = useMemo(
+    () => Math.min(STEPS.length - 1, Math.floor(progress * STEPS.length + 0.0001)),
+    [progress],
+  );
   const pct = Math.round(progress * 100);
 
   return (
@@ -78,22 +101,22 @@ export default function JourneyScrollScene({ className }: { className?: string }
       ref={ref}
       className={cn(
         'relative overflow-hidden rounded-panel border border-ink-100/90 bg-white/80 p-5 shadow-panel ring-1 ring-ink-900/5 backdrop-blur-sm sm:p-6',
-        className
+        className,
       )}
       aria-hidden="true"
     >
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sea-200/35 blur-3xl"
-      />
-      <div
-        className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-terracotta-200/30 blur-3xl"
-      />
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sea-200/35 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-terracotta-200/30 blur-3xl" />
 
       <div className="relative" style={{ perspective: reducedMotion ? undefined : '1100px' }}>
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sea-700">Journey</p>
-            <p className="mt-1 font-display text-lg font-semibold text-ink-900">Source to destination</p>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sea-700">
+              Journey
+            </p>
+            <p className="mt-1 font-display text-lg font-semibold text-ink-900">
+              Source to destination
+            </p>
           </div>
           <p className="rounded-pill bg-sand-100 px-3 py-1 text-xs font-semibold tabular-nums text-ink-600">
             {pct}%
@@ -127,7 +150,8 @@ export default function JourneyScrollScene({ className }: { className?: string }
 
             <ol className="relative grid grid-cols-4 gap-2">
               {STEPS.map((step, i) => {
-                const reached = progress >= (STEPS.length === 1 ? 1 : i / (STEPS.length - 1)) - 0.02;
+                const reached =
+                  progress >= (STEPS.length === 1 ? 1 : i / (STEPS.length - 1)) - 0.02;
                 const active = i === activeIndex;
                 return (
                   <li key={step.id} className="min-w-0 text-center">
@@ -135,13 +159,13 @@ export default function JourneyScrollScene({ className }: { className?: string }
                       className={cn(
                         'mx-auto block h-2.5 w-2.5 rounded-full border-2 transition-colors duration-200',
                         reached ? 'border-sea-600 bg-sea-600' : 'border-sand-400 bg-white',
-                        active && 'ring-4 ring-sea-100'
+                        active && 'ring-4 ring-sea-100',
                       )}
                     />
                     <span
                       className={cn(
                         'mt-3 block text-[10px] font-semibold uppercase tracking-[0.14em]',
-                        reached ? 'text-sea-700' : 'text-ink-400'
+                        reached ? 'text-sea-700' : 'text-ink-400',
                       )}
                     >
                       {step.label}
@@ -165,7 +189,7 @@ export default function JourneyScrollScene({ className }: { className?: string }
                       ? 'border-sea-200 bg-sea-50/60 shadow-soft'
                       : passed
                         ? 'border-sand-200 bg-white/70'
-                        : 'border-transparent bg-sand-50/50 opacity-80'
+                        : 'border-transparent bg-sand-50/50 opacity-80',
                   )}
                   style={
                     reducedMotion || !active

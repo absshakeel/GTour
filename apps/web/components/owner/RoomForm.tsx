@@ -86,9 +86,12 @@ export default function RoomForm({
 
     if (form.room_type.trim().length < 2) next.room_type = 'Enter at least 2 characters.';
     if (form.bed_type.trim().length < 2) next.bed_type = 'Enter at least 2 characters.';
-    if (!Number.isInteger(capacity) || capacity <= 0) next.capacity = 'Enter a whole number above 0.';
-    if (!Number.isFinite(price) || price <= 0) next.price_per_night = 'Enter a nightly rate above 0.';
-    if (!Number.isInteger(totalRooms) || totalRooms <= 0) next.total_rooms = 'Enter a whole number above 0.';
+    if (!Number.isInteger(capacity) || capacity <= 0)
+      next.capacity = 'Enter a whole number above 0.';
+    if (!Number.isFinite(price) || price <= 0)
+      next.price_per_night = 'Enter a nightly rate above 0.';
+    if (!Number.isInteger(totalRooms) || totalRooms <= 0)
+      next.total_rooms = 'Enter a whole number above 0.';
     if (amenities.length < 1) next.amenities = 'List at least one amenity.';
     if (images.length < 1) next.images = 'Upload at least one image.';
 
@@ -139,7 +142,10 @@ export default function RoomForm({
       </h3>
 
       {message ? (
-        <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700">
+        <p
+          role="alert"
+          className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700"
+        >
           {message}
         </p>
       ) : null}

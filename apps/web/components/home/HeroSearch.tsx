@@ -100,9 +100,20 @@ export default function HeroSearch({
           </select>
         </div>
 
-        <Button type="submit" size="lg" className="h-[52px] w-full justify-center sm:col-span-2 lg:col-span-1 lg:min-w-[132px]">
+        <Button
+          type="submit"
+          size="lg"
+          className="h-[52px] w-full justify-center sm:col-span-2 lg:col-span-1 lg:min-w-[132px]"
+        >
           Search
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 stroke-current" fill="none" strokeWidth="2.2" strokeLinecap="round">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-4 w-4 stroke-current"
+            fill="none"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="M16.5 16.5 21 21" />
           </svg>

@@ -2,7 +2,7 @@ import Image from 'next/image';
 import { Badge } from '@gtour/ui';
 import { cn } from '@gtour/utils';
 import { images } from '@/lib/images';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency } from '@gtour/utils';
 import type { RoomDto } from '@gtour/utils';
 
 const ROOM_FALLBACKS = [images.stays.room, images.stays.resort, images.stays.terrace];
@@ -89,7 +89,7 @@ export function RoomCard({
         className={cn(
           'group flex h-full w-full flex-col overflow-hidden rounded-card border bg-white text-left shadow-soft transition-all duration-300 ease-premium hover:shadow-lift',
           selected ? 'border-sea-500 ring-2 ring-sea-500/30' : 'border-ink-100',
-          className
+          className,
         )}
       >
         {content}
@@ -101,7 +101,7 @@ export function RoomCard({
     <article
       className={cn(
         'group flex h-full flex-col overflow-hidden rounded-card border border-ink-100 bg-white shadow-soft',
-        className
+        className,
       )}
     >
       {content}

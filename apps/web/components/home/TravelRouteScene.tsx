@@ -141,10 +141,7 @@ export default function TravelRouteScene({ className }: { className?: string }) 
             className="animate-pulse-marker"
           />
         )}
-        <path
-          d="M0 18 C 0 18 -12 4 -12 -4 A12 12 0 1 1 12 -4 C 12 4 0 18 0 18 Z"
-          fill="#C96B45"
-        />
+        <path d="M0 18 C 0 18 -12 4 -12 -4 A12 12 0 1 1 12 -4 C 12 4 0 18 0 18 Z" fill="#C96B45" />
         <circle cy="-4" r="4.6" fill="#FDFBF7" />
       </g>
 

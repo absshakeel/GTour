@@ -1,42 +1,33 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, EmptyState, ErrorState, Field, Input, LiveStatus, Select } from '@gtour/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  LiveStatus,
+  PaymentDetailDialog,
+  Select,
+} from '@gtour/ui';
 import { getApiErrorMessage } from '@gtour/utils';
-import type { BookingStatusValue, ProviderBookingDto } from '@gtour/utils';
-import { fetchProviderBookings, updateBookingStatus } from '@/lib/owner-api';
-import { formatCurrency } from '@/lib/format';
+import type { BookingStatusValue, PaymentDto, ProviderBookingDto } from '@gtour/utils';
+import { fetchBookingPayment, fetchProviderBookings, updateBookingStatus } from '@/lib/owner-api';
+import { formatCurrency, paymentStatusLabel, paymentStatusTone } from '@gtour/utils';
+import { actionsFor, notifyBookingChanged } from '@/lib/provider-booking';
 
-const STATUS_TONES: Record<BookingStatusValue, 'neutral' | 'sea' | 'terracotta' | 'gold' | 'ink'> = {
-  pending: 'gold',
-  confirmed: 'sea',
-  completed: 'neutral',
-  cancelled: 'terracotta',
-  no_show: 'ink',
-};
+const STATUS_TONES: Record<BookingStatusValue, 'neutral' | 'sea' | 'terracotta' | 'gold' | 'ink'> =
+  {
+    pending: 'gold',
+    confirmed: 'sea',
+    completed: 'neutral',
+    cancelled: 'terracotta',
+    no_show: 'ink',
+  };
 
 const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'] as const;
-
-/**
- * Provider-side status machine, mirroring `bookingWorkflow.ts` so the UI only
- * offers transitions the API will accept. The API remains the authority and
- * still rejects anything illegal.
- */
-const ACTIONS: Record<BookingStatusValue, { status: BookingStatusValue; label: string }[]> = {
-  pending: [
-    { status: 'confirmed', label: 'Confirm' },
-    { status: 'cancelled', label: 'Cancel' },
-    { status: 'no_show', label: 'No show' },
-  ],
-  confirmed: [
-    { status: 'completed', label: 'Mark completed' },
-    { status: 'cancelled', label: 'Cancel' },
-    { status: 'no_show', label: 'No show' },
-  ],
-  completed: [],
-  cancelled: [],
-  no_show: [],
-};
 
 function refLabel(value: { name?: string; room_type?: string } | string | undefined): string {
   if (!value) return '—';
@@ -53,6 +44,8 @@ export default function BookingQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [payment, setPayment] = useState<PaymentDto | null>(null);
+  const [paymentBusyId, setPaymentBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +70,18 @@ export default function BookingQueue() {
     }, {});
   }, [bookings]);
 
+  async function openReceipt(booking: ProviderBookingDto) {
+    setPaymentBusyId(booking._id);
+    setError(null);
+    try {
+      setPayment(await fetchBookingPayment(booking._id));
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setPaymentBusyId(null);
+    }
+  }
+
   async function applyStatus(booking: ProviderBookingDto, status: BookingStatusValue) {
     setBusyId(booking._id);
     setError(null);
@@ -84,10 +89,11 @@ export default function BookingQueue() {
       await updateBookingStatus(
         booking._id,
         status,
-        status === 'cancelled' ? reason.trim() || undefined : undefined
+        status === 'cancelled' ? reason.trim() || undefined : undefined,
       );
       setCancelling(null);
       setReason('');
+      notifyBookingChanged();
       await load();
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -96,8 +102,9 @@ export default function BookingQueue() {
     }
   }
 
-  if (loading) return <LiveStatus>Loading bookings…</LiveStatus>;
-  if (error && bookings.length === 0) return <ErrorState description={error} onRetry={load} compact />;
+  if (loading) return <LiveStatus>Loading bookings...</LiveStatus>;
+  if (error && bookings.length === 0)
+    return <ErrorState description={error} onRetry={load} compact />;
 
   return (
     <div className="space-y-5">
@@ -118,13 +125,14 @@ export default function BookingQueue() {
         <Button variant="outline" size="sm" onClick={load}>
           Refresh
         </Button>
-        {counts.pending ? (
-          <Badge tone="gold">{counts.pending} awaiting action</Badge>
-        ) : null}
+        {counts.pending ? <Badge tone="gold">{counts.pending} awaiting action</Badge> : null}
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700">
+        <p
+          role="alert"
+          className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700"
+        >
           {error}
         </p>
       ) : null}
@@ -142,7 +150,7 @@ export default function BookingQueue() {
       ) : (
         <ul className="space-y-4">
           {bookings.map((booking) => {
-            const actions = ACTIONS[booking.status] ?? [];
+            const actions = actionsFor(booking.status);
 
             return (
               <li
@@ -155,30 +163,38 @@ export default function BookingQueue() {
                     <p className="text-sm text-ink-500">
                       {refLabel(booking.hotel_id)} · {refLabel(booking.hotel_room_id)}
                     </p>
-                    <p className="mt-1 text-sm text-ink-600">
-                      Guest: {refLabel(booking.user_id)}
-                    </p>
+                    <p className="mt-1 text-sm text-ink-600">Guest: {refLabel(booking.user_id)}</p>
                   </div>
-                  <Badge tone={STATUS_TONES[booking.status]}>{booking.status.replace('_', ' ')}</Badge>
+                  <Badge tone={STATUS_TONES[booking.status]}>
+                    {booking.status.replace('_', ' ')}
+                  </Badge>
                 </div>
 
                 <dl className="mt-3 grid gap-2 text-sm text-ink-600 sm:grid-cols-4">
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Check-in</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                      Check-in
+                    </dt>
                     <dd>{booking.start_date?.slice(0, 10)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Check-out</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                      Check-out
+                    </dt>
                     <dd>{booking.end_date?.slice(0, 10)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Guests</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                      Guests
+                    </dt>
                     <dd>
                       {booking.guest_count} guest(s), {booking.room_count ?? 1} room(s)
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Total</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                      Total
+                    </dt>
                     <dd>{formatCurrency(booking.total_amount) ?? '—'}</dd>
                   </div>
                 </dl>
@@ -189,16 +205,43 @@ export default function BookingQueue() {
                   </p>
                 ) : null}
 
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-ink-100/80 pt-3">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                    Payment
+                  </span>
+                  {booking.payment ? (
+                    <>
+                      <Badge tone={paymentStatusTone(booking.payment.payment_status)}>
+                        {paymentStatusLabel(booking.payment.payment_status)}
+                      </Badge>
+                      <span className="text-sm text-ink-600">
+                        {formatCurrency(booking.payment.amount ?? 0, booking.payment.currency) ??
+                          '—'}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={paymentBusyId === booking._id}
+                        onClick={() => openReceipt(booking)}
+                      >
+                        {paymentBusyId === booking._id ? 'Opening...' : 'Receipt & refund'}
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-sm text-ink-500">Not paid yet</span>
+                  )}
+                </div>
+
                 {actions.length > 0 ? (
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     {actions.map((action) => (
                       <Button
                         key={action.status}
                         size="sm"
-                        variant={action.status === 'cancelled' || action.status === 'no_show' ? 'ghost' : 'primary'}
+                        variant={action.destructive ? 'ghost' : 'primary'}
                         disabled={busyId === booking._id}
                         onClick={() =>
-                          action.status === 'cancelled'
+                          action.destructive
                             ? setCancelling(cancelling === booking._id ? null : booking._id)
                             : applyStatus(booking, action.status)
                         }
@@ -244,6 +287,17 @@ export default function BookingQueue() {
           })}
         </ul>
       )}
+
+      {payment ? (
+        <PaymentDetailDialog
+          payment={payment}
+          onClose={() => setPayment(null)}
+          onChanged={() => {
+            setPayment(null);
+            void load();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -4,9 +4,7 @@ import HotelFilters from '@/components/hotels/HotelFilters';
 import { HotelCard } from '@/components/hotels/HotelCard';
 import Pagination from '@/components/destinations/Pagination';
 import { SectionHeading } from '@/components/home/Section';
-import { ButtonLink } from '@gtour/ui';
-import { CardSkeletonGrid, EmptyState, ErrorState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { ButtonLink, CardSkeletonGrid, EmptyState, ErrorState, Reveal } from '@gtour/ui';
 import { fetchDestinations, fetchHotelSearch } from '@/lib/server-api';
 
 export const revalidate = 120;
@@ -90,13 +88,14 @@ export default async function HotelsPage({
   const destinations = destinationsResult.ok ? destinationsResult.data : [];
 
   const hasActiveFilters = Boolean(
-    search || destinationId || minPrice || maxPrice || guests || minRating
+    search || destinationId || minPrice || maxPrice || guests || minRating,
   );
 
   return (
     <div className="gtour-section">
       <div className="gtour-container">
         <SectionHeading
+          as="h1"
           eyebrow="Where to stay"
           title="Stays we have published for you"
           description="Filter by destination, nightly price and rating. Prices come from each property's room rates — availability and totals are always confirmed on the server at booking time."

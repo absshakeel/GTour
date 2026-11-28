@@ -1,7 +1,5 @@
 import { DestinationCard } from '@/components/destinations/DestinationCard';
-import { EmptyState, ErrorState } from '@gtour/ui';
-import { ButtonLink } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { ButtonLink, EmptyState, ErrorState, Reveal } from '@gtour/ui';
 import { Section, SectionHeading } from './Section';
 import type { DestinationDto } from '@gtour/utils';
 
@@ -42,7 +40,11 @@ export default function PopularDestinations({
             compact
             title="New destinations coming soon"
             description="We’re curating places for you. In the meantime, explore by travel style below."
-            action={<ButtonLink href="/destinations" variant="outline" size="sm">Browse destinations</ButtonLink>}
+            action={
+              <ButtonLink href="/destinations" variant="outline" size="sm">
+                Browse destinations
+              </ButtonLink>
+            }
           />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-12">

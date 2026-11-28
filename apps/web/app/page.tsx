@@ -11,8 +11,7 @@ export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: 'GTour — Your next journey starts here',
-  description:
-    'Discover extraordinary places and everything you need to experience them.',
+  description: 'Discover extraordinary places and everything you need to experience them.',
 };
 
 export default async function HomePage() {

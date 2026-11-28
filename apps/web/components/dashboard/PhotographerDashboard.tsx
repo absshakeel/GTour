@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, ButtonLink, EmptyState, ErrorState, LiveStatus, Skeleton } from '@gtour/ui';
-import { getApiErrorMessage } from '@gtour/utils';
-import type { MyPhotographyServiceDto, MyPortfolioDto, ProviderBookingDto } from '@gtour/utils';
+import { getApiErrorMessage, refName } from '@gtour/utils';
+import type { MyPhotographyServiceDto, MyPortfolioDto } from '@gtour/utils';
 import {
   deletePhotographyService,
   deletePortfolioEntry,
@@ -12,12 +12,12 @@ import {
   setPhotographyServiceActive,
 } from '@/lib/provider-api';
 import type { MyPhotographerResponse } from '@/lib/provider-api';
-import { BOOKING_STATUS_TONES, bookingStatusLabel, formatDate } from '@/lib/booking-status';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency } from '@gtour/utils';
 import { serviceImage } from '@/lib/service-image';
 import PhotographerProfileForm from '@/components/photographer/PhotographerProfileForm';
 import ServiceForm from '@/components/photographer/ServiceForm';
 import PortfolioForm from '@/components/photographer/PortfolioForm';
+import ProviderBookingList from '@/components/provider/ProviderBookingList';
 
 type ServiceEditor = { open: false } | { open: true; service: MyPhotographyServiceDto | null };
 type PortfolioEditor = { open: false } | { open: true; entry: MyPortfolioDto | null };
@@ -42,37 +42,6 @@ function StatCard({
       <p className="mt-2 text-xs text-ink-500">{hint}</p>
       <span aria-hidden="true" className={`mt-3 block h-1 w-10 rounded-pill ${tone}`} />
     </div>
-  );
-}
-
-function guestName(booking: ProviderBookingDto): string {
-  const guest = booking.user_id;
-  if (guest && typeof guest === 'object') return guest.name || guest.email || 'Guest';
-  return 'Guest';
-}
-
-function BookingRow({ booking }: { booking: ProviderBookingDto }) {
-  const service = booking.photography_service_id;
-  const title = service && typeof service === 'object' ? service.name : 'Photography session';
-
-  return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-ink-100/80 bg-sand-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-ink-900">{title}</p>
-        <p className="mt-0.5 truncate text-xs text-ink-500">
-          {guestName(booking)} · {formatDate(booking.start_date)} · {booking.guest_count} guest
-          {booking.guest_count === 1 ? '' : 's'}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <Badge tone={BOOKING_STATUS_TONES[booking.status]}>
-          {bookingStatusLabel(booking.status)}
-        </Badge>
-        <span className="font-display text-sm font-semibold text-ink-900">
-          {formatCurrency(booking.total_amount)}
-        </span>
-      </div>
-    </li>
   );
 }
 
@@ -320,6 +289,12 @@ export default function PhotographerDashboard() {
                   </div>
                 ) : null}
                 <div className="flex gap-1.5">
+                  <dt className="text-ink-400">Base destination</dt>
+                  <dd className="font-medium text-ink-800">
+                    {refName(photographer.destination_id) || 'Not set'}
+                  </dd>
+                </div>
+                <div className="flex gap-1.5">
                   <dt className="text-ink-400">Portfolio</dt>
                   <dd className="font-medium text-ink-800">
                     {stats.frames} image{stats.frames === 1 ? '' : 's'}
@@ -414,6 +389,9 @@ export default function PhotographerDashboard() {
                   </div>
                   <div className="flex flex-1 flex-col p-4">
                     <h3 className="truncate text-sm font-semibold text-ink-900">{service.name}</h3>
+                    <p className="mt-1 text-xs text-ink-500">
+                      {refName(service.destination_id) || 'Destination not set'}
+                    </p>
                     <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-500">
                       {service.description}
                     </p>
@@ -460,7 +438,7 @@ export default function PhotographerDashboard() {
         )}
       </section>
 
-      <section aria-label="Portfolio">
+      <section aria-label="Portfolio" id="portfolio" className="scroll-mt-24">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="font-display text-lg font-semibold text-ink-900">Portfolio</h2>
@@ -585,11 +563,12 @@ export default function PhotographerDashboard() {
             compact
           />
         ) : (
-          <ul className="space-y-2.5">
-            {stats.bookings.map((booking) => (
-              <BookingRow key={booking._id} booking={booking} />
-            ))}
-          </ul>
+          <ProviderBookingList
+            bookings={stats.bookings}
+            emptyTitle="No shoots booked"
+            emptyDescription="Bookings made against your packages appear here with the guest and status."
+            onChanged={() => void load()}
+          />
         )}
       </section>
 

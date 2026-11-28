@@ -3,10 +3,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { Button } from '@gtour/ui';
-import { Field, Input } from '@gtour/ui';
-import { apiClient, getApiErrorMessage } from '@gtour/utils';
-import { saveSession } from '@gtour/utils';
+import { Button, ButtonLink, Field, Input } from '@gtour/ui';
+import {
+  apiClient,
+  getApiErrorCode,
+  getApiErrorMessage,
+  handOffSession,
+  saveSession,
+} from '@gtour/utils';
 import type { LoginResponse } from '@gtour/utils';
 import { isCrossOrigin, roleHome } from '@/lib/role-home';
 
@@ -19,6 +23,8 @@ export default function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resent, setResent] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,6 +41,8 @@ export default function LoginForm() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
+    setNeedsVerification(false);
+    setResent(false);
     try {
       const { data } = await apiClient.post<LoginResponse>('/auth/login', {
         email: email.trim(),
@@ -45,14 +53,31 @@ export default function LoginForm() {
       saveSession(data.data.user, data.data.token);
 
       // Admin accounts live on the separate admin origin, so a client-side
-      // route push would not reach them.
+      // route push would not reach them — and that origin cannot read this
+      // origin's localStorage, so the session is handed over explicitly.
       const home = roleHome(data.data.user.role);
       if (isCrossOrigin(home)) {
-        window.location.assign(home);
+        handOffSession(home);
         return;
       }
       router.push(home);
       router.refresh();
+    } catch (error) {
+      // A pending account is not a failure the traveller can retype their way
+      // out of, so it gets its own actions instead of a red banner.
+      setNeedsVerification(getApiErrorCode(error) === 'ACCOUNT_NOT_VERIFIED');
+      setFormError(getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function resendVerification() {
+    setResent(false);
+    setSubmitting(true);
+    try {
+      await apiClient.post('/auth/resend-verification', { email: email.trim() });
+      setResent(true);
     } catch (error) {
       setFormError(getApiErrorMessage(error));
     } finally {
@@ -65,7 +90,14 @@ export default function LoginForm() {
       {/* Left: visual panel (hidden on mobile to prioritize form) */}
       <div className="relative hidden h-full w-1/2 overflow-hidden lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_10%_10%,#1f5f73_0%,#0f2f44_38%,#0b1b2c_100%)]" />
-        <div className="absolute inset-0 opacity-[0.22]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '56px 56px' }} />
+        <div
+          className="absolute inset-0 opacity-[0.22]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
+        />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-sea-400/25 blur-3xl motion-safe:animate-[auth-orb-a_16s_ease-in-out_infinite]" />
           <div className="absolute right-[-6rem] top-[18%] h-80 w-80 rounded-full bg-gold-400/20 blur-3xl motion-safe:animate-[auth-orb-b_18s_ease-in-out_infinite]" />
@@ -74,7 +106,14 @@ export default function LoginForm() {
           <div className="absolute left-10 top-[34%] w-52 rounded-2xl border border-white/15 bg-white/10 p-4 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.45)] backdrop-blur-md motion-safe:animate-[auth-float_8s_ease-in-out_infinite]">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sea-400/25 text-white">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.8"/><circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.8"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
               </span>
               <div>
                 <p className="text-xs font-medium text-sand-200/80">Discover</p>
@@ -102,9 +141,13 @@ export default function LoginForm() {
                 <p className="text-xs font-medium text-sand-200/80">Trusted by travellers</p>
                 <p className="mt-1 text-lg font-semibold text-white">Plan with confidence</p>
               </div>
-              <span className="rounded-lg bg-gold-400/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-200">GTour</span>
+              <span className="rounded-lg bg-gold-400/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-200">
+                GTour
+              </span>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-sand-100/75">Personalized journeys, verified stays, and memorable experiences in one place.</p>
+            <p className="mt-2 text-xs leading-relaxed text-sand-100/75">
+              Personalized journeys, verified stays, and memorable experiences in one place.
+            </p>
           </div>
         </div>
 
@@ -113,21 +156,66 @@ export default function LoginForm() {
             <span className="h-1.5 w-1.5 rounded-full bg-gold-300" /> GTour
           </div>
           <div className="max-w-md motion-safe:animate-[gtour-fade-up_700ms_cubic-bezier(0.22,1,0.36,1)_both]">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sand-200/90">Welcome back</p>
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-sand-200/90">
+              Welcome back
+            </p>
             <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.08] text-white xl:text-5xl">
               Continue your journey with GTour.
             </h1>
             <p className="mt-4 max-w-sm text-base leading-relaxed text-sand-100/85">
-              Sign in to explore destinations, manage bookings, and pick up right where you left off.
+              Sign in to explore destinations, manage bookings, and pick up right where you left
+              off.
             </p>
           </div>
         </div>
         <style jsx>{`
-          @keyframes auth-orb-a { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(24px,-18px) scale(1.08);} }
-          @keyframes auth-orb-b { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-28px,20px) scale(1.06);} }
-          @keyframes auth-orb-c { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(18px,22px) scale(1.05);} }
-          @keyframes auth-float { 0%,100%{ transform: translateY(0px);} 50%{ transform: translateY(-10px);} }
-          @keyframes auth-shimmer { 0%,100%{ transform: translateX(-20%); opacity:.7;} 50%{ transform: translateX(25%); opacity:1;} }
+          @keyframes auth-orb-a {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(24px, -18px) scale(1.08);
+            }
+          }
+          @keyframes auth-orb-b {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(-28px, 20px) scale(1.06);
+            }
+          }
+          @keyframes auth-orb-c {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(18px, 22px) scale(1.05);
+            }
+          }
+          @keyframes auth-float {
+            0%,
+            100% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
+          }
+          @keyframes auth-shimmer {
+            0%,
+            100% {
+              transform: translateX(-20%);
+              opacity: 0.7;
+            }
+            50% {
+              transform: translateX(25%);
+              opacity: 1;
+            }
+          }
         `}</style>
       </div>
 
@@ -138,14 +226,46 @@ export default function LoginForm() {
             <p className="inline-flex items-center rounded-full bg-sea-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sea-700 lg:hidden">
               GTour Travel
             </p>
-            <h2 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-[2rem]">Sign in</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-500">Enter your details to continue your journey.</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink-900 sm:text-[2rem]">
+              Sign in
+            </h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
+              Enter your details to continue your journey.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-4 rounded-3xl border border-sand-200/80 bg-white/90 p-5 shadow-[0_20px_50px_-30px_rgba(12,28,44,0.35)] backdrop-blur-sm sm:p-6">
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="space-y-4 rounded-3xl border border-sand-200/80 bg-white/90 p-5 shadow-[0_20px_50px_-30px_rgba(12,28,44,0.35)] backdrop-blur-sm sm:p-6"
+          >
             {formError ? (
-              <div role="alert" className="rounded-2xl border border-terracotta-200 bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700 animate-[gtour-fade-up_300ms_ease-out]">
+              <div
+                role="alert"
+                className="rounded-2xl border border-terracotta-200 bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700 animate-[gtour-fade-up_300ms_ease-out]"
+              >
                 {formError}
+                {needsVerification ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void resendVerification()}
+                      disabled={submitting || !email.trim()}
+                    >
+                      Resend verification email
+                    </Button>
+                    <ButtonLink href={`/verify-email?email=${encodeURIComponent(email.trim())}`} size="sm" variant="ghost">
+                      I have a code
+                    </ButtonLink>
+                  </div>
+                ) : null}
+                {resent ? (
+                  <p className="mt-2 text-xs font-medium text-sea-700">
+                    Sent. Check your inbox and spam folder for the new link.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -200,14 +320,20 @@ export default function LoginForm() {
                 />
                 <span>Remember me</span>
               </label>
-              <Link href="/login" className="text-sm font-semibold text-sea-600 transition-colors hover:text-sea-700">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-sea-600 transition-colors hover:text-sea-700"
+              >
                 Forgot password?
               </Link>
             </div>
 
             <Button type="submit" size="lg" className="mt-1 w-full" disabled={submitting}>
               {submitting ? (
-                <span className="inline-flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Signing in…</span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Signing in…
+                </span>
               ) : (
                 'Sign in'
               )}
@@ -216,7 +342,10 @@ export default function LoginForm() {
 
           <p className="mt-5 text-center text-sm text-ink-500">
             New to GTour?{' '}
-            <Link href="/register" className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 transition-colors hover:text-sea-700">
+            <Link
+              href="/register"
+              className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 transition-colors hover:text-sea-700"
+            >
               Create an account
             </Link>
           </p>

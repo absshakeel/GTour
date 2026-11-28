@@ -45,7 +45,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       title: 'Traveller',
       items: [
         { href: '/dashboard', label: 'Overview', icon: 'overview', exact: true },
-        { href: '/dashboard#booking-history', label: 'My bookings', icon: 'bookings' },
+        { href: '/dashboard/trips', label: 'My trips', icon: 'bookings' },
+        { href: '/dashboard#booking-history', label: 'Booking history', icon: 'calendar' },
+        { href: '/dashboard/payments', label: 'Payments', icon: 'wallet' },
+        { href: '/notifications', label: 'Notifications', icon: 'bell' },
       ],
     },
     {
