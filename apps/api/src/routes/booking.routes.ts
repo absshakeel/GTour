@@ -5,6 +5,7 @@ import {
   getBookingById,
   getProviderBookings,
   getUserBookings,
+  listBookings,
   updateBooking,
   updateBookingStatus,
 } from '../controllers/booking.controller';
@@ -59,6 +60,67 @@ router.post('/', authenticate, createBooking);
 
 /**
  * @openapi
+ * /bookings:
+ *   get:
+ *     tags: [Bookings]
+ *     summary: List every booking (admin only)
+ *     description: |
+ *       The platform-wide booking ledger, newest stay first. Unlike
+ *       `/bookings/provider`, this endpoint is not scoped to owned resources,
+ *       so it is restricted to admins. `search` matches the booking reference
+ *       case-insensitively; `date_from` / `date_to` filter on the stay start
+ *       date.
+ *     parameters:
+ *       - $ref: '#/components/parameters/Page'
+ *       - $ref: '#/components/parameters/Limit'
+ *       - name: status
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, completed, cancelled, no_show]
+ *       - name: booking_type
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: [hotel, photography, vehicle]
+ *       - name: search
+ *         in: query
+ *         description: Case-insensitive match on the booking reference.
+ *         schema: { type: string }
+ *       - name: date_from
+ *         in: query
+ *         description: Earliest stay start date (ISO 8601).
+ *         schema: { type: string, format: date }
+ *       - name: date_to
+ *         in: query
+ *         description: Latest stay start date (ISO 8601).
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: One page of bookings.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 bookings:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Booking'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.get('/', authenticate, authorize(UserRole.ADMIN), listBookings);
+
+/**
+ * @openapi
  * /bookings/user:
  *   get:
  *     tags: [Bookings]
@@ -90,8 +152,14 @@ router.get('/user', authenticate, getUserBookings);
  * /bookings/provider:
  *   get:
  *     tags: [Bookings]
- *     summary: List bookings for the signed-in owner's properties
- *     description: Only bookings whose hotel belongs to the caller are returned. An admin sees every booking.
+ *     summary: List bookings for the signed-in provider's resources
+ *     description: |
+ *       Returns hotel, photography and vehicle bookings whose underlying
+ *       resource belongs to the caller. A hotel owner sees only their property,
+ *       a photographer only their shoots, a vehicle provider only their fleet.
+ *       An admin sees every booking. Each row carries a trimmed `payment`
+ *       object, or `null`, so the queue can show settlement state without a
+ *       second request per booking.
  *     responses:
  *       200:
  *         description: The provider queue.
@@ -113,8 +181,8 @@ router.get('/user', authenticate, getUserBookings);
 router.get(
   '/provider',
   authenticate,
-  authorize(UserRole.HOTEL_OWNER, UserRole.ADMIN),
-  getProviderBookings
+  authorize(UserRole.HOTEL_OWNER, UserRole.PHOTOGRAPHER, UserRole.VEHICLE_PROVIDER, UserRole.ADMIN),
+  getProviderBookings,
 );
 
 /**

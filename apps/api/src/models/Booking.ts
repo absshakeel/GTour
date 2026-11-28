@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { BookingStatus } from '@gtour/shared-types';
+import { BookingStatus, PaymentPolicy } from '@gtour/shared-types';
 import { currencyCode } from '../config/currency';
 
 /** Immutable record of what the server charged and why. */
@@ -23,6 +23,12 @@ export interface IBooking extends Document {
   room_count: number;
   total_amount: number;
   price_snapshot?: IPriceSnapshot;
+  /**
+   * The property's payment policy at the moment the booking was created. Copied
+   * rather than read live so an owner changing their policy later cannot change
+   * what an existing guest already agreed to.
+   */
+  payment_policy?: PaymentPolicy;
   status: BookingStatus;
   special_requests?: string;
   cancellation_reason?: string;
@@ -32,8 +38,6 @@ export interface IBooking extends Document {
   hotel_room_id?: mongoose.Types.ObjectId;
   photography_service_id?: mongoose.Types.ObjectId;
   vehicle_id?: mongoose.Types.ObjectId;
-  created_at: Date;
-  updated_at: Date;
 }
 
 const PriceSnapshotSchema = new Schema<IPriceSnapshot>(
@@ -48,12 +52,12 @@ const PriceSnapshotSchema = new Schema<IPriceSnapshot>(
       {
         _id: false,
         date: { type: String, required: true },
-        price_per_night: { type: Number, required: true, min: 0 }
-      }
+        price_per_night: { type: Number, required: true, min: 0 },
+      },
     ],
-    captured_at: { type: Date, required: true, default: Date.now }
+    captured_at: { type: Date, required: true, default: Date.now },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const BookingSchema = new Schema<IBooking>(
@@ -61,84 +65,89 @@ const BookingSchema = new Schema<IBooking>(
     booking_reference: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
     },
     booking_type: {
       type: String,
       enum: ['hotel', 'photography', 'vehicle'],
-      required: true
+      required: true,
     },
     start_date: {
       type: Date,
-      required: true
+      required: true,
     },
     end_date: {
       type: Date,
-      required: true
+      required: true,
     },
     guest_count: {
       type: Number,
       required: true,
-      min: 1
+      min: 1,
     },
     // Hotel bookings can hold more than one room per night.
     room_count: {
       type: Number,
       min: 1,
-      default: 1
+      default: 1,
     },
     total_amount: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
     },
     // Server-computed price at booking time. Never overwritten afterwards, so a
     // later room price change cannot alter what the guest was charged.
     price_snapshot: {
-      type: PriceSnapshotSchema
+      type: PriceSnapshotSchema,
+    },
+    // Copied from the hotel when the booking is created; see the interface note.
+    payment_policy: {
+      type: String,
+      enum: Object.values(PaymentPolicy),
     },
     status: {
       type: String,
       enum: Object.values(BookingStatus),
-      default: BookingStatus.PENDING
+      default: BookingStatus.PENDING,
     },
     special_requests: {
       type: String,
-      maxlength: 500
+      maxlength: 500,
     },
     cancellation_reason: {
       type: String,
-      maxlength: 300
+      maxlength: 300,
     },
     cancelled_at: {
-      type: Date
+      type: Date,
     },
     user_id: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+      required: true,
     },
     // Denormalised so provider booking queues can filter without joining rooms.
     hotel_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Hotel'
+      ref: 'Hotel',
     },
     hotel_room_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Room'
+      ref: 'Room',
     },
     photography_service_id: {
       type: Schema.Types.ObjectId,
-      ref: 'PhotographyService'
+      ref: 'PhotographyService',
     },
     vehicle_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Vehicle'
-    }
+      ref: 'Vehicle',
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 // Indexes
