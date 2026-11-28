@@ -3,9 +3,7 @@ import { Suspense } from 'react';
 import { DestinationCard } from '@/components/destinations/DestinationCard';
 import DestinationFilters from '@/components/destinations/DestinationFilters';
 import Pagination from '@/components/destinations/Pagination';
-import { ButtonLink } from '@gtour/ui';
-import { CardSkeletonGrid, EmptyState, ErrorState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { ButtonLink, CardSkeletonGrid, EmptyState, ErrorState, Reveal } from '@gtour/ui';
 import { fetchDestinationFilters, fetchDestinationPage } from '@/lib/server-api';
 
 export const metadata: Metadata = {
@@ -101,7 +99,11 @@ export default async function DestinationsPage({
               const hasActiveFilters = Boolean(search || categoryId || locationId);
               return (
                 <EmptyState
-                  title={hasActiveFilters ? 'No destinations match those filters' : 'No destinations published yet'}
+                  title={
+                    hasActiveFilters
+                      ? 'No destinations match those filters'
+                      : 'No destinations published yet'
+                  }
                   description={
                     hasActiveFilters
                       ? 'Try a different travel style or region, or clear the filters to see everything we have published.'

@@ -7,6 +7,7 @@ import { ButtonLink } from '@gtour/ui';
 import { SESSION_EVENT, clearSession, cn, readUser } from '@gtour/utils';
 import type { AuthUserDto } from '@gtour/utils';
 import { isCrossOrigin, roleHome, roleLabel } from '@/lib/role-home';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const NAV_LINKS = [
   { href: '/destinations', label: 'Explore' },
@@ -58,6 +59,12 @@ const ICONS = {
     </>
   ),
   chevron: <path d="M5 7.5l5 5 5-5" />,
+  bell: (
+    <>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 4.5-1.6 5.8-2.2 6.4a.9.9 0 0 0 .6 1.6h15.2a.9.9 0 0 0 .6-1.6c-.6-.6-2.2-1.9-2.2-6.4Z" />
+      <path d="M10 20a2.2 2.2 0 0 0 4 0" />
+    </>
+  ),
 } as const;
 
 function Icon({ path, className }: { path: keyof typeof ICONS; className?: string }) {
@@ -129,11 +136,32 @@ function workspaceLinks(role?: string): AccountLink[] {
   }
   if (role === 'admin') {
     return [
-      { href: roleHome('admin'), label: 'Admin console', icon: 'grid', description: 'Platform management' },
+      {
+        href: roleHome('admin'),
+        label: 'Admin console',
+        icon: 'grid',
+        description: 'Platform management',
+      },
     ];
   }
-  return [{ href: '/dashboard', label: 'My dashboard', icon: 'grid', description: 'Bookings and trips' }];
+  return [
+    { href: '/dashboard', label: 'My dashboard', icon: 'grid', description: 'Bookings and trips' },
+    {
+      href: '/dashboard/trips',
+      label: 'My trips',
+      icon: 'calendar',
+      description: 'Stays, shoots and rides',
+    },
+  ];
 }
+
+/** Every role gets the notification inbox, listed next to their workspace links. */
+const NOTIFICATION_LINK: AccountLink = {
+  href: '/notifications',
+  label: 'Notifications',
+  icon: 'bell',
+  description: 'Booking and payment updates',
+};
 
 function MenuLink({ item, onNavigate }: { item: AccountLink; onNavigate: () => void }) {
   const content = (
@@ -228,7 +256,7 @@ export default function Navbar() {
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join('');
-  const links = workspaceLinks(user?.role);
+  const links = user ? [...workspaceLinks(user.role), NOTIFICATION_LINK] : [];
   const closeMenu = () => setUserMenuOpen(false);
 
   return (
@@ -237,7 +265,7 @@ export default function Navbar() {
         'sticky top-0 z-50 w-full transition-[background-color,box-shadow,backdrop-filter] duration-300 ease-premium',
         scrolled
           ? 'border-b border-ink-100/70 bg-sand-50/90 shadow-soft backdrop-blur-md'
-          : 'border-b border-transparent bg-sand-50/70 backdrop-blur-sm'
+          : 'border-b border-transparent bg-sand-50/70 backdrop-blur-sm',
       )}
     >
       <nav aria-label="Main" className="gtour-container">
@@ -267,7 +295,7 @@ export default function Navbar() {
                       'rounded-pill px-4 py-2 text-sm font-medium transition-colors duration-200',
                       active
                         ? 'bg-sea-100 text-sea-700'
-                        : 'text-ink-600 hover:bg-sand-200/70 hover:text-ink-900'
+                        : 'text-ink-600 hover:bg-sand-200/70 hover:text-ink-900',
                     )}
                   >
                     {link.label}
@@ -288,6 +316,7 @@ export default function Navbar() {
           </ul>
 
           <div className="hidden items-center gap-2 lg:flex">
+            {user ? <NotificationBell enabled={Boolean(user)} /> : null}
             {user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -300,7 +329,7 @@ export default function Navbar() {
                     'flex items-center gap-2.5 rounded-pill border py-1.5 pl-1.5 pr-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-400 focus-visible:ring-offset-2 focus-visible:ring-offset-sand-50',
                     userMenuOpen
                       ? 'border-sea-300 bg-white shadow-soft'
-                      : 'border-sand-300/80 bg-white/80 text-ink-800 hover:border-sea-300 hover:bg-white'
+                      : 'border-sand-300/80 bg-white/80 text-ink-800 hover:border-sea-300 hover:bg-white',
                   )}
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sea-500 text-[11px] font-bold tracking-wide text-white">
@@ -311,7 +340,7 @@ export default function Navbar() {
                     path="chevron"
                     className={cn(
                       'h-4 w-4 text-ink-400 transition-transform duration-200',
-                      userMenuOpen && 'rotate-180'
+                      userMenuOpen && 'rotate-180',
                     )}
                   />
                 </button>
@@ -337,7 +366,11 @@ export default function Navbar() {
 
                     <div className="space-y-0.5">
                       {links.map((item) => (
-                        <MenuLink key={`${item.href}-${item.label}`} item={item} onNavigate={closeMenu} />
+                        <MenuLink
+                          key={`${item.href}-${item.label}`}
+                          item={item}
+                          onNavigate={closeMenu}
+                        />
                       ))}
                     </div>
 
@@ -376,6 +409,12 @@ export default function Navbar() {
               </>
             )}
           </div>
+
+          {user ? (
+            <div className="lg:hidden">
+              <NotificationBell enabled />
+            </div>
+          ) : null}
 
           <button
             type="button"

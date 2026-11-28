@@ -6,12 +6,16 @@ import { DestinationCta } from '@/components/destinations/DestinationCta';
 import { DestinationCard } from '@/components/destinations/DestinationCard';
 import { HotelCard } from '@/components/hotels/HotelCard';
 import { PhotographerCard } from '@/components/photographers/PhotographerCard';
-import { RatingBadge } from '@gtour/ui';
-import { ButtonLink } from '@gtour/ui';
-import { EmptyState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { VehicleCard } from '@/components/vehicles/VehicleCard';
+import { ButtonLink, EmptyState, RatingBadge, Reveal } from '@gtour/ui';
 import { destinationImage } from '@/lib/destination-image';
-import { fetchDestination, fetchDestinationPage, fetchHotelsForDestination, fetchPhotographers } from '@/lib/server-api';
+import {
+  fetchDestination,
+  fetchDestinationPage,
+  fetchHotelsForDestination,
+  fetchPhotographers,
+  fetchVehicles,
+} from '@/lib/server-api';
 import { locationLabel, refName, type DestinationDto } from '@gtour/utils';
 
 export const revalidate = 120;
@@ -23,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const result = await fetchDestination(id);
 
   if (!result.ok) {
-    return { title: 'Destination not found' };
+    return { title: result.notFound ? 'Destination not found' : 'Destination unavailable' };
   }
 
   const destination = result.data;
@@ -71,10 +75,16 @@ function RelatedDestinations({
   if (related.length === 0) return null;
 
   return (
-    <section aria-labelledby="related-destinations" className="gtour-section border-t border-ink-100">
+    <section
+      aria-labelledby="related-destinations"
+      className="gtour-section border-t border-ink-100"
+    >
       <div className="gtour-container">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="related-destinations" className="font-display text-3xl font-semibold text-ink-900">
+          <h2
+            id="related-destinations"
+            className="font-display text-3xl font-semibold text-ink-900"
+          >
             More places to consider
           </h2>
           <Link
@@ -102,12 +112,17 @@ export default async function DestinationDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   const result = await fetchDestination(id);
-  if (!result.ok) notFound();
+  // Only a real 404 becomes a 404 page; a failed fetch throws so the error
+  // boundary can offer a retry rather than hide a transient outage.
+  if (!result.ok) {
+    if (result.notFound) notFound();
+    throw new Error(result.message);
+  }
 
   const destination = result.data;
   const hero = destinationImage(destination);
   const gallery = (destination.images ?? []).filter(
-    (image): image is string => typeof image === 'string' && image.trim().length > 0
+    (image): image is string => typeof image === 'string' && image.trim().length > 0,
   );
   const supporting = gallery.filter((image) => image !== hero.src).slice(0, 4);
 
@@ -115,40 +130,22 @@ export default async function DestinationDetailPage({ params }: PageProps) {
   const category = refName(destination.category_id);
   const budget = formatCurrency(destination.estimated_budget);
 
-  const [hotelsResult, photographersResult, suggestionsResult] = await Promise.all([
+  const [hotelsResult, photographersResult, vehiclesResult, suggestionsResult] = await Promise.all([
     fetchHotelsForDestination(destination._id),
-    fetchPhotographers(),
+    fetchPhotographers(destination._id),
+    fetchVehicles(destination._id),
     fetchDestinationPage({ sort_by: 'rating', sort_order: 'desc', limit: 4 }),
   ]);
 
   const hotels = hotelsResult.ok ? hotelsResult.data : [];
   const suggestions = suggestionsResult.ok ? suggestionsResult.data.destinations : [];
-
-  /**
-   * Photographers declare the destination they are based in, so the page can
-   * show the ones that actually cover this place. Those with no destination set
-   * are treated as available everywhere and included too.
-   */
-  const photographers = photographersResult.ok
-    ? photographersResult.data.filter((photographer) => {
-        const linked = photographer.destination_id;
-        if (!linked) return true;
-        const linkedId = typeof linked === 'string' ? linked : linked._id;
-        return linkedId === destination._id;
-      })
-    : [];
+  const photographers = photographersResult.ok ? photographersResult.data : [];
+  const vehicles = vehiclesResult.ok ? vehiclesResult.data : [];
 
   return (
     <article>
       <header className="relative isolate min-h-[62vh] w-full overflow-hidden bg-ink-900">
-        <Image
-          src={hero.src}
-          alt={hero.alt}
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
+        <Image src={hero.src} alt={hero.alt} fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-ink-veil" aria-hidden="true" />
 
         <div className="gtour-container relative flex min-h-[62vh] flex-col justify-end pb-12 pt-28">
@@ -211,10 +208,7 @@ export default async function DestinationDetailPage({ params }: PageProps) {
                 </h3>
                 <ul className="mt-4 grid grid-cols-2 gap-4">
                   {supporting.map((image, index) => (
-                    <li
-                      key={`${image}-${index}`}
-                      className="gtour-media relative aspect-[4/3]"
-                    >
+                    <li key={`${image}-${index}`} className="gtour-media relative aspect-[4/3]">
                       <Image
                         src={image}
                         alt={`${destination.name} — additional travel photography ${index + 1}`}
@@ -235,10 +229,20 @@ export default async function DestinationDetailPage({ params }: PageProps) {
                 At a glance
               </h2>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Fact label="Average rating" value={destination.average_rating ? `${destination.average_rating.toFixed(1)} / 5` : 'Not rated yet'} />
+                <Fact
+                  label="Average rating"
+                  value={
+                    destination.average_rating
+                      ? `${destination.average_rating.toFixed(1)} / 5`
+                      : 'Not rated yet'
+                  }
+                />
                 <Fact label="Estimated budget" value={budget ?? 'Available on request'} />
                 <Fact label="Best season" value={destination.best_visit_season || 'Year-round'} />
-                <Fact label="Views" value={new Intl.NumberFormat('en-US').format(destination.views ?? 0)} />
+                <Fact
+                  label="Views"
+                  value={new Intl.NumberFormat('en-US').format(destination.views ?? 0)}
+                />
                 {region ? <Fact label="Region" value={region} /> : null}
                 {category ? <Fact label="Travel style" value={category} /> : null}
               </dl>
@@ -363,21 +367,33 @@ export default async function DestinationDetailPage({ params }: PageProps) {
             </Link>
           </div>
 
-          <div className="mt-8 rounded-panel border border-ink-100 bg-white/80 p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
-              Coming soon
-            </p>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-600">
-              Destination-level vehicle availability is not switched on yet. Rental listings live on
-              the vehicles page, and a booking is always confirmed against the provider&apos;s own
-              calendar on the server.
-            </p>
-            <div className="mt-5">
-              <ButtonLink href="/vehicles" variant="outline">
-                Browse vehicles
-              </ButtonLink>
+          {vehicles.length === 0 ? (
+            <div className="mt-8">
+              <EmptyState
+                title="No vehicles listed here yet"
+                description={
+                  vehiclesResult.ok
+                    ? 'No provider has published a rental for this destination so far. Browse the full fleet in the meantime.'
+                    : vehiclesResult.message
+                }
+                action={
+                  <ButtonLink href="/vehicles" variant="outline">
+                    Browse vehicles
+                  </ButtonLink>
+                }
+              />
             </div>
-          </div>
+          ) : (
+            <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {vehicles.slice(0, 3).map((vehicle, index) => (
+                <li key={vehicle._id}>
+                  <Reveal delayMs={index * 70}>
+                    <VehicleCard vehicle={vehicle} className="h-full" />
+                  </Reveal>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

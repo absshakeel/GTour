@@ -1,8 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@gtour/ui';
-import { cn } from '@gtour/utils';
-import { formatCurrency } from '@/lib/format';
+import { cn, formatCurrency } from '@gtour/utils';
 import { serviceImage } from '@/lib/service-image';
 import { refName, type VehicleDto } from '@gtour/utils';
 

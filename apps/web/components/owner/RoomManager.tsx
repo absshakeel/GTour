@@ -5,7 +5,7 @@ import { Badge, Button, EmptyState, ErrorState, LiveStatus } from '@gtour/ui';
 import { getApiErrorMessage } from '@gtour/utils';
 import type { RoomDto } from '@gtour/utils';
 import { deleteRoom, fetchRooms } from '@/lib/owner-api';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency } from '@gtour/utils';
 import RoomForm from './RoomForm';
 import AvailabilityEditor from './AvailabilityEditor';
 
@@ -70,7 +70,10 @@ export default function RoomManager({ hotelId }: { hotelId: string }) {
   return (
     <div className="space-y-4">
       {error ? (
-        <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700">
+        <p
+          role="alert"
+          className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700"
+        >
           {error}
         </p>
       ) : null}
@@ -109,7 +112,9 @@ export default function RoomManager({ hotelId }: { hotelId: string }) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => setAvailabilityRoomId(availabilityRoomId === room._id ? null : room._id)}
+                    onClick={() =>
+                      setAvailabilityRoomId(availabilityRoomId === room._id ? null : room._id)
+                    }
                   >
                     {availabilityRoomId === room._id ? 'Hide calendar' : 'Availability'}
                   </Button>

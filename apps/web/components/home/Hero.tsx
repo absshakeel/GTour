@@ -45,14 +45,24 @@ export default function Hero({
             </h1>
 
             <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-sand-50/95 drop-shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:text-lg">
-              Explore destinations, find stays, and connect with travel services — all in one place. Start by choosing where you want to go.
+              Explore destinations, find stays, and connect with travel services — all in one place.
+              Start by choosing where you want to go.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <ButtonLink href="/destinations" size="lg" className="bg-sand-50 text-ink-900 shadow-soft hover:bg-white">
+              <ButtonLink
+                href="/destinations"
+                size="lg"
+                className="bg-sand-50 text-ink-900 shadow-soft hover:bg-white"
+              >
                 Explore destinations
               </ButtonLink>
-              <ButtonLink href="/hotels" variant="outline" size="lg" className="border-white/45 bg-white/10 text-white backdrop-blur-sm hover:border-white/70 hover:bg-white/20">
+              <ButtonLink
+                href="/hotels"
+                variant="outline"
+                size="lg"
+                className="border-white/45 bg-white/10 text-white backdrop-blur-sm hover:border-white/70 hover:bg-white/20"
+              >
                 Find your stay
               </ButtonLink>
             </div>
@@ -81,7 +91,10 @@ export default function Hero({
 
               {/* professional globe */}
               <div className="absolute left-1/2 top-1/2 aspect-square w-[21rem] -translate-x-1/2 -translate-y-1/2 sm:w-[27rem] lg:w-[33rem]">
-                <svg viewBox="0 0 400 400" className="h-full w-full overflow-visible drop-shadow-[0_30px_80px_rgba(0,0,0,0.4)]">
+                <svg
+                  viewBox="0 0 400 400"
+                  className="h-full w-full overflow-visible drop-shadow-[0_30px_80px_rgba(0,0,0,0.4)]"
+                >
                   <defs>
                     <radialGradient id="globeSphere" cx="32%" cy="28%" r="78%">
                       <stop offset="0%" stopColor="#D6F4F1" />
@@ -115,15 +128,42 @@ export default function Hero({
                   </defs>
 
                   {/* atmosphere */}
-                  <circle cx="200" cy="200" r="188" fill="rgba(188,221,222,0.08)" className="motion-safe:animate-[pulse_5s_ease-in-out_infinite]" />
-                  <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(231,244,243,0.22)" strokeWidth="2" />
-                  <circle cx="200" cy="200" r="182" fill="none" stroke="rgba(230,206,147,0.12)" strokeWidth="1.5" strokeDasharray="6 10" className="motion-safe:animate-[spin_40s_linear_infinite]" />
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r="188"
+                    fill="rgba(188,221,222,0.08)"
+                    className="motion-safe:animate-[pulse_5s_ease-in-out_infinite]"
+                  />
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r="178"
+                    fill="none"
+                    stroke="rgba(231,244,243,0.22)"
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r="182"
+                    fill="none"
+                    stroke="rgba(230,206,147,0.12)"
+                    strokeWidth="1.5"
+                    strokeDasharray="6 10"
+                    className="motion-safe:animate-[spin_40s_linear_infinite]"
+                  />
 
                   {/* sphere */}
                   <circle cx="200" cy="200" r="168" fill="url(#globeSphere)" />
                   <g clipPath="url(#globeClip)">
                     {/* graticule */}
-                    <g stroke="rgba(253,251,247,0.14)" strokeWidth="1" fill="none" className="motion-safe:[transform-origin:200px_200px] motion-safe:animate-[spin_60s_linear_infinite]">
+                    <g
+                      stroke="rgba(253,251,247,0.14)"
+                      strokeWidth="1"
+                      fill="none"
+                      className="motion-safe:[transform-origin:200px_200px] motion-safe:animate-[spin_60s_linear_infinite]"
+                    >
                       <ellipse cx="200" cy="200" rx="168" ry="38" />
                       <ellipse cx="200" cy="200" rx="168" ry="74" />
                       <ellipse cx="200" cy="200" rx="168" ry="112" />
@@ -133,7 +173,12 @@ export default function Hero({
                       <ellipse cx="200" cy="200" rx="112" ry="168" />
                       <ellipse cx="200" cy="200" rx="142" ry="168" />
                     </g>
-                    <g stroke="rgba(253,251,247,0.08)" strokeWidth="1" fill="none" className="motion-safe:[transform-origin:200px_200px] motion-safe:animate-[spin_45s_linear_infinite_reverse]">
+                    <g
+                      stroke="rgba(253,251,247,0.08)"
+                      strokeWidth="1"
+                      fill="none"
+                      className="motion-safe:[transform-origin:200px_200px] motion-safe:animate-[spin_45s_linear_infinite_reverse]"
+                    >
                       <ellipse cx="200" cy="200" rx="168" ry="56" />
                       <ellipse cx="200" cy="200" rx="168" ry="94" />
                       <ellipse cx="200" cy="200" rx="56" ry="168" />
@@ -172,13 +217,28 @@ export default function Hero({
 
                     <g>
                       <circle cx="70" cy="245" r="7.5" fill="#FDFBF7" />
-                      <circle cx="70" cy="245" r="17" fill="#FDFBF7" opacity="0.18" className="motion-safe:animate-[pulse_2.8s_ease-in-out_infinite]" />
+                      <circle
+                        cx="70"
+                        cy="245"
+                        r="17"
+                        fill="#FDFBF7"
+                        opacity="0.18"
+                        className="motion-safe:animate-[pulse_2.8s_ease-in-out_infinite]"
+                      />
                     </g>
 
                     <g transform="translate(320 185)">
-                      <path d="M0 22 C 0 22 -15 4 -15 -6 A15 15 0 1 1 15 -6 C 15 4 0 22 0 22 Z" fill="#F3D2C1" />
+                      <path
+                        d="M0 22 C 0 22 -15 4 -15 -6 A15 15 0 1 1 15 -6 C 15 4 0 22 0 22 Z"
+                        fill="#F3D2C1"
+                      />
                       <circle cy="-6" r="5.5" fill="#0C1C2C" />
-                      <circle r="22" fill="#F3D2C1" opacity="0.16" className="motion-safe:animate-[pulse_3s_ease-in-out_infinite]" />
+                      <circle
+                        r="22"
+                        fill="#F3D2C1"
+                        opacity="0.16"
+                        className="motion-safe:animate-[pulse_3s_ease-in-out_infinite]"
+                      />
                     </g>
 
                     <g>
@@ -196,16 +256,33 @@ export default function Hero({
                           <mpath href="#globeRoutePath" />
                         </animateMotion>
                         <g>
-                          <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="16s" repeatCount="indefinite" />
+                          <animate
+                            attributeName="opacity"
+                            values="1;1;0;0"
+                            keyTimes="0;0.5;0.5;1"
+                            dur="16s"
+                            repeatCount="indefinite"
+                          />
                           <g transform="translate(-30 0) scale(1.05)">
                             {/* professional airplane */}
                             <ellipse cx="22" cy="0" rx="24" ry="5.2" fill="#FDFBF7" />
-                            <path d="M42 0 C 50 0, 54 -1.2, 58 0 C 54 1.2, 50 0, 42 0 Z" fill="#E6CE93" />
+                            <path
+                              d="M42 0 C 50 0, 54 -1.2, 58 0 C 54 1.2, 50 0, 42 0 Z"
+                              fill="#E6CE93"
+                            />
                             <path d="M14 -1 L-6 -15 L-2 -1 Z" fill="#FFFFFF" opacity="0.98" />
                             <path d="M14 1 L-6 15 L-2 1 Z" fill="#E7F4F3" opacity="0.98" />
                             <path d="M30 -1 L22 -9 L20 -1 Z" fill="#FFFFFF" opacity="0.95" />
                             <path d="M30 1 L22 9 L20 1 Z" fill="#E7F4F3" opacity="0.95" />
-                            <rect x="12" y="-1.8" width="18" height="3.6" rx="1.8" fill="#BCDDDE" opacity="0.9" />
+                            <rect
+                              x="12"
+                              y="-1.8"
+                              width="18"
+                              height="3.6"
+                              rx="1.8"
+                              fill="#BCDDDE"
+                              opacity="0.9"
+                            />
                             <circle cx="10" cy="0" r="1.4" fill="#147A80" opacity="0.9" />
                             <circle cx="16" cy="0" r="1.2" fill="#147A80" opacity="0.75" />
                             <circle cx="22" cy="0" r="1.2" fill="#147A80" opacity="0.75" />
@@ -227,16 +304,33 @@ export default function Hero({
                           <mpath href="#globeRoutePath" />
                         </animateMotion>
                         <g>
-                          <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.5;0.5;1" dur="16s" repeatCount="indefinite" />
+                          <animate
+                            attributeName="opacity"
+                            values="0;0;1;1"
+                            keyTimes="0;0.5;0.5;1"
+                            dur="16s"
+                            repeatCount="indefinite"
+                          />
                           <g transform="translate(-30 0) scale(-1.05,1.05)">
                             {/* professional airplane (flipped to face return direction) */}
                             <ellipse cx="22" cy="0" rx="24" ry="5.2" fill="#FDFBF7" />
-                            <path d="M42 0 C 50 0, 54 -1.2, 58 0 C 54 1.2, 50 0, 42 0 Z" fill="#E6CE93" />
+                            <path
+                              d="M42 0 C 50 0, 54 -1.2, 58 0 C 54 1.2, 50 0, 42 0 Z"
+                              fill="#E6CE93"
+                            />
                             <path d="M14 -1 L-6 -15 L-2 -1 Z" fill="#FFFFFF" opacity="0.98" />
                             <path d="M14 1 L-6 15 L-2 1 Z" fill="#E7F4F3" opacity="0.98" />
                             <path d="M30 -1 L22 -9 L20 -1 Z" fill="#FFFFFF" opacity="0.95" />
                             <path d="M30 1 L22 9 L20 1 Z" fill="#E7F4F3" opacity="0.95" />
-                            <rect x="12" y="-1.8" width="18" height="3.6" rx="1.8" fill="#BCDDDE" opacity="0.9" />
+                            <rect
+                              x="12"
+                              y="-1.8"
+                              width="18"
+                              height="3.6"
+                              rx="1.8"
+                              fill="#BCDDDE"
+                              opacity="0.9"
+                            />
                             <circle cx="10" cy="0" r="1.4" fill="#147A80" opacity="0.9" />
                             <circle cx="16" cy="0" r="1.2" fill="#147A80" opacity="0.75" />
                             <circle cx="22" cy="0" r="1.2" fill="#147A80" opacity="0.75" />
@@ -246,16 +340,41 @@ export default function Hero({
                     </g>
 
                     <g opacity="0.9">
-                      <circle cx="160" cy="205" r="5" fill="#E6CE93" className="motion-safe:animate-[pulse_3.2s_ease-in-out_infinite]" />
-                      <circle cx="235" cy="160" r="4.5" fill="#FFFFFF" className="motion-safe:animate-[pulse_2.6s_ease-in-out_infinite]" />
-                      <circle cx="210" cy="250" r="4" fill="#BCDDDE" className="motion-safe:animate-[pulse_3.6s_ease-in-out_infinite]" />
+                      <circle
+                        cx="160"
+                        cy="205"
+                        r="5"
+                        fill="#E6CE93"
+                        className="motion-safe:animate-[pulse_3.2s_ease-in-out_infinite]"
+                      />
+                      <circle
+                        cx="235"
+                        cy="160"
+                        r="4.5"
+                        fill="#FFFFFF"
+                        className="motion-safe:animate-[pulse_2.6s_ease-in-out_infinite]"
+                      />
+                      <circle
+                        cx="210"
+                        cy="250"
+                        r="4"
+                        fill="#BCDDDE"
+                        className="motion-safe:animate-[pulse_3.6s_ease-in-out_infinite]"
+                      />
                     </g>
                   </g>
 
                   {/* lighting */}
                   <circle cx="200" cy="200" r="168" fill="url(#globeHighlight)" />
                   <circle cx="200" cy="200" r="168" fill="url(#globeShadow)" />
-                  <circle cx="200" cy="200" r="168" fill="none" stroke="rgba(253,251,247,0.3)" strokeWidth="2" />
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r="168"
+                    fill="none"
+                    stroke="rgba(253,251,247,0.3)"
+                    strokeWidth="2"
+                  />
                 </svg>
               </div>
 
@@ -266,33 +385,73 @@ export default function Hero({
               <div className="absolute right-[12%] bottom-[12%] h-12 w-22 rounded-full bg-white/10 blur-[1px] motion-safe:animate-[gtour-float_12s_ease-in-out_infinite]" />
 
               <div className="absolute left-[18%] top-[26%] motion-safe:animate-[gtour-float_9s_ease-in-out_infinite]">
-                <svg width="26" height="34" viewBox="0 0 26 34" className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)]">
-                  <path d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z" fill="#F3D2C1" />
+                <svg
+                  width="26"
+                  height="34"
+                  viewBox="0 0 26 34"
+                  className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)]"
+                >
+                  <path
+                    d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z"
+                    fill="#F3D2C1"
+                  />
                   <circle cx="13" cy="11" r="4.5" fill="#0C1C2C" />
                 </svg>
               </div>
               <div className="absolute right-[16%] top-[30%] motion-safe:animate-[gtour-float-slow_10s_ease-in-out_infinite]">
-                <svg width="22" height="28" viewBox="0 0 26 34" className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)] opacity-90">
-                  <path d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z" fill="#BCDDDE" />
+                <svg
+                  width="22"
+                  height="28"
+                  viewBox="0 0 26 34"
+                  className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)] opacity-90"
+                >
+                  <path
+                    d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z"
+                    fill="#BCDDDE"
+                  />
                   <circle cx="13" cy="11" r="4.5" fill="#0C1C2C" />
                 </svg>
               </div>
               <div className="absolute right-[22%] bottom-[24%] motion-safe:animate-[gtour-drift_12s_ease-in-out_infinite]">
-                <svg width="24" height="30" viewBox="0 0 26 34" className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)]">
-                  <path d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z" fill="#E6CE93" />
+                <svg
+                  width="24"
+                  height="30"
+                  viewBox="0 0 26 34"
+                  className="drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)]"
+                >
+                  <path
+                    d="M13 33 C13 33 1 19 1 11 A12 12 0 1 1 25 11 C25 19 13 33 13 33 Z"
+                    fill="#E6CE93"
+                  />
                   <circle cx="13" cy="11" r="4.5" fill="#0C1C2C" />
                 </svg>
               </div>
 
               <div className="absolute left-[24%] bottom-[18%] motion-safe:animate-[gtour-float-slow_11s_ease-in-out_infinite]">
-                <svg width="42" height="42" viewBox="0 0 42 42" className="opacity-90 drop-shadow-[0_6px_14px_rgba(0,0,0,0.2)]">
-                  <path d="M4 20 C10 10, 18 10, 21 20 C24 10, 32 10, 38 20 C32 22, 28 28, 21 30 C14 28, 10 22, 4 20 Z" fill="#FDFBF7" />
+                <svg
+                  width="42"
+                  height="42"
+                  viewBox="0 0 42 42"
+                  className="opacity-90 drop-shadow-[0_6px_14px_rgba(0,0,0,0.2)]"
+                >
+                  <path
+                    d="M4 20 C10 10, 18 10, 21 20 C24 10, 32 10, 38 20 C32 22, 28 28, 21 30 C14 28, 10 22, 4 20 Z"
+                    fill="#FDFBF7"
+                  />
                   <path d="M21 20 L21 38" stroke="#FDFBF7" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </div>
               <div className="absolute right-[28%] top-[44%] motion-safe:animate-[gtour-float_13s_ease-in-out_infinite]">
-                <svg width="34" height="34" viewBox="0 0 34 34" className="opacity-80 drop-shadow-[0_6px_14px_rgba(0,0,0,0.2)]">
-                  <path d="M17 4 L20 13 L30 13 L22 19 L25 29 L17 23 L9 29 L12 19 L4 13 L14 13 Z" fill="#E6CE93" />
+                <svg
+                  width="34"
+                  height="34"
+                  viewBox="0 0 34 34"
+                  className="opacity-80 drop-shadow-[0_6px_14px_rgba(0,0,0,0.2)]"
+                >
+                  <path
+                    d="M17 4 L20 13 L30 13 L22 19 L25 29 L17 23 L9 29 L12 19 L4 13 L14 13 Z"
+                    fill="#E6CE93"
+                  />
                 </svg>
               </div>
 

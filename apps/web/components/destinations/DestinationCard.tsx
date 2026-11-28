@@ -2,8 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { RatingBadge } from '@gtour/ui';
 import { destinationImage } from '@/lib/destination-image';
-import { locationLabel, refName, type DestinationDto } from '@gtour/utils';
-import { cn } from '@gtour/utils';
+import { cn, locationLabel, refName, type DestinationDto } from '@gtour/utils';
 
 /**
  * Editorial destination tile. The image treatment is configurable so the same
@@ -32,7 +31,7 @@ export function DestinationCard({
     <article
       className={cn(
         'group relative isolate overflow-hidden rounded-card bg-ink-900 shadow-soft transition-shadow duration-300 ease-premium hover:shadow-lift',
-        className
+        className,
       )}
     >
       <div className={cn('relative w-full overflow-hidden', imageClassName)}>
@@ -63,7 +62,7 @@ export function DestinationCard({
         <h3
           className={cn(
             'mt-1.5 font-display font-semibold text-white',
-            compact ? 'text-lg' : 'text-2xl sm:text-3xl'
+            compact ? 'text-lg' : 'text-2xl sm:text-3xl',
           )}
         >
           <Link href={`/destinations/${destination._id}`} className="focus:outline-none">
@@ -116,7 +115,7 @@ export function StyleTile({
       href={href}
       className={cn(
         'group relative isolate flex overflow-hidden rounded-card bg-ink-900 focus:outline-none',
-        className
+        className,
       )}
     >
       <Image

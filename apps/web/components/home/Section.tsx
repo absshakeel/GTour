@@ -8,6 +8,7 @@ export function SectionHeading({
   description,
   action,
   align = 'left',
+  as: Heading = 'h2',
   className,
 }: {
   eyebrow: string;
@@ -15,6 +16,8 @@ export function SectionHeading({
   description?: string;
   action?: { href: string; label: string };
   align?: 'left' | 'center';
+  /** A listing page uses this as its page title, so it renders an `h1` there. */
+  as?: 'h1' | 'h2';
   className?: string;
 }) {
   return (
@@ -22,14 +25,14 @@ export function SectionHeading({
       className={cn(
         'flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between',
         align === 'center' && 'sm:flex-col sm:items-center sm:text-center',
-        className
+        className,
       )}
     >
       <div className={cn('max-w-2xl', align === 'center' && 'mx-auto')}>
         <p className="gtour-eyebrow">{eyebrow}</p>
-        <h2 className="mt-3 text-balance font-display text-display-sm font-semibold text-ink-900">
+        <Heading className="mt-3 text-balance font-display text-display-sm font-semibold text-ink-900">
           {title}
-        </h2>
+        </Heading>
         {description ? (
           <p className="mt-4 text-pretty text-base leading-relaxed text-ink-500">{description}</p>
         ) : null}

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Field, ImageUploader, Input, Textarea } from '@gtour/ui';
+import { Button, Field, ImageUploader, Input, Select, Textarea } from '@gtour/ui';
 import { getApiErrorMessage } from '@gtour/utils';
 import type { MyPhotographyServiceDto } from '@gtour/utils';
 import { createPhotographyService, updatePhotographyService } from '@/lib/provider-api';
+import { fetchDestinationOptions } from '@/lib/owner-api';
+import type { DestinationOption } from '@/lib/owner-api';
 
 interface FormState {
   name: string;
@@ -13,6 +15,7 @@ interface FormState {
   duration_hours: string;
   photo_count: string;
   delivery_days: string;
+  destination_id: string;
 }
 
 const EMPTY: FormState = {
@@ -22,6 +25,7 @@ const EMPTY: FormState = {
   duration_hours: '',
   photo_count: '',
   delivery_days: '',
+  destination_id: '',
 };
 
 function toFormState(service?: MyPhotographyServiceDto | null): FormState {
@@ -34,6 +38,10 @@ function toFormState(service?: MyPhotographyServiceDto | null): FormState {
     duration_hours: String(service.duration_hours ?? ''),
     photo_count: service.photo_count ? String(service.photo_count) : '',
     delivery_days: service.delivery_days ? String(service.delivery_days) : '',
+    destination_id:
+      typeof service.destination_id === 'string'
+        ? service.destination_id
+        : (service.destination_id?._id ?? ''),
   };
 }
 
@@ -49,9 +57,24 @@ export default function ServiceForm({
 }) {
   const [form, setForm] = useState<FormState>(() => toFormState(service));
   const [images, setImages] = useState<string[]>(() => (service?.images ?? []).filter(Boolean));
+  const [destinations, setDestinations] = useState<DestinationOption[]>([]);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState | 'images', string>>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchDestinationOptions()
+      .then((options) => {
+        if (active) setDestinations(options);
+      })
+      .catch(() => {
+        if (active) setDestinations([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     setForm(toFormState(service));
@@ -87,6 +110,7 @@ export default function ServiceForm({
       photo_count: form.photo_count ? Number(form.photo_count) : undefined,
       delivery_days: form.delivery_days ? Number(form.delivery_days) : undefined,
       images,
+      destination_id: form.destination_id || undefined,
     };
   }
 
@@ -149,6 +173,27 @@ export default function ServiceForm({
           invalid={Boolean(errors.description)}
           onChange={(event) => update('description', event.target.value)}
         />
+      </Field>
+
+      <Field
+        label="Destination"
+        htmlFor="service-destination"
+        hint="Where this package is sold. Leave blank to use your base destination."
+      >
+        <Select
+          id="service-destination"
+          value={form.destination_id}
+          onChange={(event) => update('destination_id', event.target.value)}
+        >
+          <option value="">Use my base destination</option>
+          {destinations.map((destination) => (
+            <option key={destination._id} value={destination._id}>
+              {destination.country
+                ? `${destination.name} — ${destination.country}`
+                : destination.name}
+            </option>
+          ))}
+        </Select>
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

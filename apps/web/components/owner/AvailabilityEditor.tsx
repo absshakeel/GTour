@@ -5,7 +5,7 @@ import { Badge, Button, Field, Input, LiveStatus, Select } from '@gtour/ui';
 import { getApiErrorMessage } from '@gtour/utils';
 import type { NightlyRateDto, RoomDto } from '@gtour/utils';
 import { fetchRoomCalendar, publishAvailability } from '@/lib/owner-api';
-import { formatCurrency, nightsBetween, toDateInputValue } from '@/lib/format';
+import { formatCurrency, nightsBetween, toDateInputValue } from '@gtour/utils';
 
 type Status = 'available' | 'unavailable' | 'partial';
 
@@ -99,7 +99,7 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
         status: form.status,
       });
       setNotice(
-        `Published ${availableRooms} room(s) for ${stayNights} night${stayNights === 1 ? '' : 's'}.`
+        `Published ${availableRooms} room(s) for ${stayNights} night${stayNights === 1 ? '' : 's'}.`,
       );
       await load();
     } catch (err) {
@@ -137,8 +137,8 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
 
       {!loading && nights.length === 0 ? (
         <p className="text-sm text-ink-500">
-          No nights returned for this range. Every night otherwise defaults to{' '}
-          {room.total_rooms} {room.total_rooms === 1 ? 'room' : 'rooms'}.
+          No nights returned for this range. Every night otherwise defaults to {room.total_rooms}{' '}
+          {room.total_rooms === 1 ? 'room' : 'rooms'}.
         </p>
       ) : null}
 
@@ -149,9 +149,7 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
               key={night.date}
               className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2 text-sm"
             >
-              <span className="font-medium text-ink-800">
-                {night.date.slice(0, 10)}
-              </span>
+              <span className="font-medium text-ink-800">{night.date.slice(0, 10)}</span>
               <span className="flex items-center gap-2">
                 <span className="text-ink-500">
                   {night.available_rooms} left · {formatCurrency(night.price_per_night) ?? '—'}
@@ -167,7 +165,10 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
         <p className="text-sm font-semibold text-ink-800">Publish a window</p>
 
         {error ? (
-          <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-2.5 text-sm text-terracotta-700">
+          <p
+            role="alert"
+            className="rounded-2xl bg-terracotta-50 px-4 py-2.5 text-sm text-terracotta-700"
+          >
             {error}
           </p>
         ) : null}
@@ -214,7 +215,9 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
             <Select
               id={`pub-status-${room._id}`}
               value={form.status}
-              onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as Status }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, status: event.target.value as Status }))
+              }
             >
               <option value="available">Available</option>
               <option value="partial">Partial</option>
@@ -233,7 +236,9 @@ export default function AvailabilityEditor({ room }: { room: RoomDto }) {
             type="number"
             min={1}
             value={form.price_override}
-            onChange={(event) => setForm((prev) => ({ ...prev, price_override: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, price_override: event.target.value }))
+            }
           />
         </Field>
 

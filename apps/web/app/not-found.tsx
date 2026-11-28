@@ -9,8 +9,8 @@ export default function NotFound() {
           This route is not on our map
         </h1>
         <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-ink-500">
-          The page you were looking for has moved or was never published. Start from the destinations
-          we have live today, or head back to the home page.
+          The page you were looking for has moved or was never published. Start from the
+          destinations we have live today, or head back to the home page.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <ButtonLink href="/destinations">Browse destinations</ButtonLink>

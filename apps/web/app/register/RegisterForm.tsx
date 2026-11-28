@@ -1,14 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
-import { Button } from '@gtour/ui';
-import { Field, Input } from '@gtour/ui';
-import { apiClient, getApiErrorMessage } from '@gtour/utils';
-import { saveSession } from '@gtour/utils';
-import { cn } from '@gtour/utils';
-import type { LoginResponse } from '@gtour/utils';
+import { Button, ButtonLink, Field, Input } from '@gtour/ui';
+import { apiClient, cn, getApiErrorMessage } from '@gtour/utils';
 
 /**
  * Roles a visitor can self-select. `admin` is deliberately excluded — it must
@@ -23,31 +18,65 @@ const ROLE_OPTIONS = [
 ] as const;
 
 type Step = 1 | 2;
-type FieldErrors = Partial<Record<'name' | 'email' | 'password' | 'confirmPassword' | 'terms', string>>;
+type FieldErrors = Partial<
+  Record<'name' | 'email' | 'password' | 'confirmPassword' | 'terms', string>
+>;
 
 function RoleIcon({ type, active }: { type: string; active: boolean }) {
   const cls = cn('h-5 w-5', active ? 'text-sea-700' : 'text-ink-500');
   if (type === 'hotel')
     return (
-      <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        className={cls}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h.01M15 10h.01M9 14h.01M15 14h.01" />
       </svg>
     );
   if (type === 'camera')
     return (
-      <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        className={cls}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 8h3l2-2h6l2 2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z" />
         <circle cx="12" cy="14" r="3.5" />
       </svg>
     );
   if (type === 'car')
     return (
-      <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        className={cls}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13M5 13h14M5 13a2 2 0 0 0-2 2v2h2m14-4a2 2 0 0 1 2 2v2h-2M7 17a1.5 1.5 0 1 0 0 .01M17 17a1.5 1.5 0 1 0 0 .01" />
       </svg>
     );
   return (
-    <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className={cls}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M14.5 9.5l-2 5-5 2 2-5 5-2z" />
     </svg>
@@ -55,26 +84,28 @@ function RoleIcon({ type, active }: { type: string; active: boolean }) {
 }
 
 export default function RegisterForm({ initialRole }: { initialRole?: string }) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState(
-    ROLE_OPTIONS.some((option) => option.value === initialRole) ? (initialRole as string) : 'tourist'
+    ROLE_OPTIONS.some((option) => option.value === initialRole)
+      ? (initialRole as string)
+      : 'tourist',
   );
   const [terms, setTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resent, setResent] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const isProvider = role !== 'tourist';
   const passwordHint = useMemo(
     () => (password.length > 0 && password.length < 8 ? 'Use at least 8 characters.' : undefined),
-    [password]
+    [password],
   );
 
   function validateStep1() {
@@ -115,19 +146,29 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
 
     setSubmitting(true);
     try {
-      const { data } = await apiClient.post<LoginResponse>('/auth/register', {
+      // The API deliberately returns no session here: the account stays pending
+      // until the emailed link is opened, so there is nothing to store yet.
+      await apiClient.post('/auth/register', {
         name: name.trim(),
         email: email.trim(),
         password,
         role,
       });
 
-      // Registration already returns a token, so the visitor stays signed in.
-      saveSession(data.data.user, data.data.token);
       setSuccess(true);
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      router.push('/destinations');
-      router.refresh();
+    } catch (error) {
+      setFormError(getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function resendVerification() {
+    setResent(false);
+    setSubmitting(true);
+    try {
+      await apiClient.post('/auth/resend-verification', { email: email.trim() });
+      setResent(true);
     } catch (error) {
       setFormError(getApiErrorMessage(error));
     } finally {
@@ -140,7 +181,14 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
       {/* Left: visual panel (hidden on mobile to prioritize form) */}
       <div className="relative hidden h-full w-[46%] overflow-hidden lg:block xl:w-1/2">
         <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_10%_10%,#1f5f73_0%,#0f2f44_38%,#0b1b2c_100%)]" />
-        <div className="absolute inset-0 opacity-[0.22]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '56px 56px' }} />
+        <div
+          className="absolute inset-0 opacity-[0.22]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
+        />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-sea-400/25 blur-3xl motion-safe:animate-[auth-orb-a_16s_ease-in-out_infinite]" />
           <div className="absolute right-[-6rem] top-[18%] h-80 w-80 rounded-full bg-gold-400/20 blur-3xl motion-safe:animate-[auth-orb-b_18s_ease-in-out_infinite]" />
@@ -149,11 +197,22 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
           <div className="absolute left-10 top-[34%] w-52 rounded-2xl border border-white/15 bg-white/10 p-4 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.45)] backdrop-blur-md motion-safe:animate-[auth-float_8s_ease-in-out_infinite]">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sea-400/25 text-white">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z" stroke="currentColor" strokeWidth="1.8"/><circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.8"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
               </span>
               <div>
-                <p className="text-xs font-medium text-sand-200/80">{isProvider ? 'Grow' : 'Discover'}</p>
-                <p className="text-sm font-semibold text-white">{isProvider ? 'Reach new travellers' : 'Curated destinations'}</p>
+                <p className="text-xs font-medium text-sand-200/80">
+                  {isProvider ? 'Grow' : 'Discover'}
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {isProvider ? 'Reach new travellers' : 'Curated destinations'}
+                </p>
               </div>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15">
@@ -162,8 +221,12 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
           </div>
 
           <div className="absolute right-10 top-[18%] w-48 rounded-2xl border border-white/15 bg-white/10 p-4 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.45)] backdrop-blur-md motion-safe:animate-[auth-float_9s_ease-in-out_infinite_reverse]">
-            <p className="text-xs font-medium text-sand-200/80">{isProvider ? 'Provider tools' : 'Seamless planning'}</p>
-            <p className="mt-1 text-sm font-semibold text-white">{isProvider ? 'Showcase your services' : 'Hotels, transport & experiences'}</p>
+            <p className="text-xs font-medium text-sand-200/80">
+              {isProvider ? 'Provider tools' : 'Seamless planning'}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-white">
+              {isProvider ? 'Showcase your services' : 'Hotels, transport & experiences'}
+            </p>
             <div className="mt-3 flex -space-x-2">
               <span className="h-7 w-7 rounded-full border border-white/30 bg-sea-300/50" />
               <span className="h-7 w-7 rounded-full border border-white/30 bg-gold-300/60" />
@@ -175,9 +238,13 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium text-sand-200/80">GTour platform</p>
-                <p className="mt-1 text-lg font-semibold text-white">{isProvider ? 'Built for partners' : 'Plan with confidence'}</p>
+                <p className="mt-1 text-lg font-semibold text-white">
+                  {isProvider ? 'Built for partners' : 'Plan with confidence'}
+                </p>
               </div>
-              <span className="rounded-lg bg-gold-400/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-200">GTour</span>
+              <span className="rounded-lg bg-gold-400/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-200">
+                GTour
+              </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-sand-100/75">
               {isProvider
@@ -196,7 +263,9 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
               {isProvider ? 'For providers' : 'Begin here'}
             </p>
             <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.08] text-white xl:text-5xl">
-              {isProvider ? 'Share your services with the world.' : 'Start your journey with GTour.'}
+              {isProvider
+                ? 'Share your services with the world.'
+                : 'Start your journey with GTour.'}
             </h1>
             <p className="mt-4 max-w-sm text-base leading-relaxed text-sand-100/85">
               {isProvider
@@ -206,11 +275,53 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
           </div>
         </div>
         <style jsx>{`
-          @keyframes auth-orb-a { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(24px,-18px) scale(1.08);} }
-          @keyframes auth-orb-b { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-28px,20px) scale(1.06);} }
-          @keyframes auth-orb-c { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(18px,22px) scale(1.05);} }
-          @keyframes auth-float { 0%,100%{ transform: translateY(0px);} 50%{ transform: translateY(-10px);} }
-          @keyframes auth-shimmer { 0%,100%{ transform: translateX(-20%); opacity:.7;} 50%{ transform: translateX(25%); opacity:1;} }
+          @keyframes auth-orb-a {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(24px, -18px) scale(1.08);
+            }
+          }
+          @keyframes auth-orb-b {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(-28px, 20px) scale(1.06);
+            }
+          }
+          @keyframes auth-orb-c {
+            0%,
+            100% {
+              transform: translate(0, 0) scale(1);
+            }
+            50% {
+              transform: translate(18px, 22px) scale(1.05);
+            }
+          }
+          @keyframes auth-float {
+            0%,
+            100% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
+          }
+          @keyframes auth-shimmer {
+            0%,
+            100% {
+              transform: translateX(-20%);
+              opacity: 0.7;
+            }
+            50% {
+              transform: translateX(25%);
+              opacity: 1;
+            }
+          }
         `}</style>
       </div>
 
@@ -222,23 +333,87 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
               <p className="inline-flex items-center rounded-full bg-sea-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sea-700 lg:hidden">
                 GTour Travel
               </p>
-              <h2 className="mt-1 font-display text-[1.6rem] font-semibold leading-tight text-ink-900 sm:text-[1.75rem]">Create account</h2>
-              <p className="mt-0.5 text-sm leading-snug text-ink-500">Begin your next journey in a few steps.</p>
+              <h2 className="mt-1 font-display text-[1.6rem] font-semibold leading-tight text-ink-900 sm:text-[1.75rem]">
+                Create account
+              </h2>
+              <p className="mt-0.5 text-sm leading-snug text-ink-500">
+                Begin your next journey in a few steps.
+              </p>
             </div>
             <div className="flex items-center gap-1.5 pb-1">
-              <span className={cn('h-1.5 w-8 rounded-full transition-colors', step >= 1 ? 'bg-sea-500' : 'bg-sand-300')} />
-              <span className={cn('h-1.5 w-8 rounded-full transition-colors', step >= 2 ? 'bg-sea-500' : 'bg-sand-300')} />
+              <span
+                className={cn(
+                  'h-1.5 w-8 rounded-full transition-colors',
+                  step >= 1 ? 'bg-sea-500' : 'bg-sand-300',
+                )}
+              />
+              <span
+                className={cn(
+                  'h-1.5 w-8 rounded-full transition-colors',
+                  step >= 2 ? 'bg-sea-500' : 'bg-sand-300',
+                )}
+              />
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-3 rounded-3xl border border-sand-200/80 bg-white/95 p-4 shadow-[0_24px_60px_-32px_rgba(12,28,44,0.4)] backdrop-blur-sm sm:p-4">
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="space-y-3 rounded-3xl border border-sand-200/80 bg-white/95 p-4 shadow-[0_24px_60px_-32px_rgba(12,28,44,0.4)] backdrop-blur-sm sm:p-4"
+          >
             {success ? (
-              <div role="status" className="rounded-2xl border border-sea-200 bg-sea-50 px-3.5 py-2.5 text-sm font-medium text-sea-700 animate-[gtour-fade-up_300ms_ease-out]">
-                Account created successfully. Signing you in…
+              <div className="space-y-3 animate-[gtour-fade-up_300ms_ease-out]">
+                <div className="rounded-2xl border border-sea-200 bg-sea-50 px-4 py-3.5">
+                  <p className="text-sm font-semibold text-sea-800">
+                    Check your inbox to activate your account
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-sea-700">
+                    We sent a verification link to <span className="font-semibold">{email.trim()}</span>.
+                    Open it within 24 hours to finish setting up your account, then sign in.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <ButtonLink
+                    href={`/login?email=${encodeURIComponent(email.trim())}`}
+                    size="lg"
+                    className="!min-h-[3rem] flex-1"
+                  >
+                    Go to sign in
+                  </ButtonLink>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="!min-h-[3rem]"
+                    onClick={() => void resendVerification()}
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Sending...' : 'Resend email'}
+                  </Button>
+                </div>
+                <p className="text-center text-xs text-ink-500">
+                  Did not get it? Check spam, or{' '}
+                  <Link
+                    href={`/verify-email?email=${encodeURIComponent(email.trim())}`}
+                    className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4"
+                  >
+                    enter the details manually
+                  </Link>
+                  .
+                </p>
+                {resent ? (
+                  <p className="text-center text-xs font-medium text-sea-700">
+                    Verification email sent.
+                  </p>
+                ) : null}
               </div>
-            ) : null}
+            ) : (
+              <>
             {formError ? (
-              <div role="alert" className="rounded-2xl border border-terracotta-200 bg-terracotta-50 px-3.5 py-2.5 text-sm text-terracotta-700 animate-[gtour-fade-up_300ms_ease-out]">
+              <div
+                role="alert"
+                className="rounded-2xl border border-terracotta-200 bg-terracotta-50 px-3.5 py-2.5 text-sm text-terracotta-700 animate-[gtour-fade-up_300ms_ease-out]"
+              >
                 {formError}
               </div>
             ) : null}
@@ -246,7 +421,9 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
             {step === 1 ? (
               <div className="space-y-3 animate-[gtour-fade-up_280ms_ease-out]">
                 <div>
-                  <p className="mb-1.5 text-sm font-semibold tracking-[-0.01em] text-ink-800">Account type</p>
+                  <p className="mb-1.5 text-sm font-semibold tracking-[-0.01em] text-ink-800">
+                    Account type
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {ROLE_OPTIONS.map((option) => {
                       const active = role === option.value;
@@ -259,16 +436,30 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
                             'group flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left transition-all duration-200',
                             active
                               ? 'border-sea-400 bg-sea-50/70 shadow-[0_0_0_3px_rgba(20,122,128,0.10)]'
-                              : 'border-sand-200 bg-white hover:border-sand-300 hover:bg-sand-50'
+                              : 'border-sand-200 bg-white hover:border-sand-300 hover:bg-sand-50',
                           )}
                           aria-pressed={active}
                         >
-                          <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors', active ? 'bg-sea-100' : 'bg-sand-100 group-hover:bg-sand-200/70')}>
+                          <span
+                            className={cn(
+                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors',
+                              active ? 'bg-sea-100' : 'bg-sand-100 group-hover:bg-sand-200/70',
+                            )}
+                          >
                             <RoleIcon type={option.icon} active={active} />
                           </span>
                           <span className="min-w-0">
-                            <span className={cn('block text-[13px] font-semibold leading-tight', active ? 'text-sea-800' : 'text-ink-800')}>{option.label}</span>
-                            <span className="block text-[11px] leading-snug text-ink-500">{option.desc}</span>
+                            <span
+                              className={cn(
+                                'block text-[13px] font-semibold leading-tight',
+                                active ? 'text-sea-800' : 'text-ink-800',
+                              )}
+                            >
+                              {option.label}
+                            </span>
+                            <span className="block text-[11px] leading-snug text-ink-500">
+                              {option.desc}
+                            </span>
                           </span>
                         </button>
                       );
@@ -340,7 +531,11 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
                   </div>
                 </Field>
 
-                <Field label="Confirm password" htmlFor="register-confirm" error={fieldErrors.confirmPassword}>
+                <Field
+                  label="Confirm password"
+                  htmlFor="register-confirm"
+                  error={fieldErrors.confirmPassword}
+                >
                   <Input
                     id="register-confirm"
                     name="confirmPassword"
@@ -365,32 +560,51 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
                     />
                     <span>
                       I agree to the{' '}
-                      <Link href="/terms" className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 hover:text-sea-700">
+                      <Link
+                        href="/terms"
+                        className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 hover:text-sea-700"
+                      >
                         Terms
                       </Link>{' '}
                       and{' '}
-                      <Link href="/privacy" className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 hover:text-sea-700">
+                      <Link
+                        href="/privacy"
+                        className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 hover:text-sea-700"
+                      >
                         Privacy policy
                       </Link>
                       .
                     </span>
                   </label>
                   {fieldErrors.terms ? (
-                    <p role="alert" className="mt-1 text-xs font-medium text-terracotta-700">{fieldErrors.terms}</p>
+                    <p role="alert" className="mt-1 text-xs font-medium text-terracotta-700">
+                      {fieldErrors.terms}
+                    </p>
                   ) : null}
                 </div>
 
                 <div className="flex gap-2.5 pt-0.5">
                   <button
                     type="button"
-                    onClick={() => { setStep(1); setFormError(null); }}
+                    onClick={() => {
+                      setStep(1);
+                      setFormError(null);
+                    }}
                     className="inline-flex min-h-[3rem] items-center justify-center rounded-pill border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-700 transition-all hover:border-sea-300 hover:bg-sand-50"
                   >
                     Back
                   </button>
-                  <Button type="submit" size="lg" className="!min-h-[3rem] flex-1" disabled={submitting || success}>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="!min-h-[3rem] flex-1"
+                    disabled={submitting || success}
+                  >
                     {submitting || success ? (
-                      <span className="inline-flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />{success ? 'Signing you in…' : 'Creating…'}</span>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                        {success ? 'Signing you in…' : 'Creating…'}
+                      </span>
                     ) : (
                       'Create account'
                     )}
@@ -398,11 +612,16 @@ export default function RegisterForm({ initialRole }: { initialRole?: string }) 
                 </div>
               </div>
             )}
+              </>
+            )}
           </form>
 
           <p className="mt-3 text-center text-sm text-ink-500">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 transition-colors hover:text-sea-700">
+            <Link
+              href="/login"
+              className="font-semibold text-sea-600 underline decoration-sea-300 underline-offset-4 transition-colors hover:text-sea-700"
+            >
               Sign in
             </Link>
           </p>

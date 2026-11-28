@@ -7,11 +7,7 @@ import { locationLabel } from '@gtour/utils';
 import type { DestinationDto } from '@gtour/utils';
 
 /** Section 5 — Travel Inspiration: immersive editorial spread. */
-export default function TravelInspiration({
-  destination,
-}: {
-  destination?: DestinationDto;
-}) {
+export default function TravelInspiration({ destination }: { destination?: DestinationDto }) {
   const image = destination
     ? destinationImage(destination)
     : { src: images.inspiration.src, alt: images.inspiration.alt };
@@ -22,13 +18,7 @@ export default function TravelInspiration({
   return (
     <section className="relative isolate overflow-hidden">
       <div className="relative min-h-[30rem] w-full sm:min-h-[34rem] lg:min-h-[38rem]">
-        <Image
-          src={image.src}
-          alt={image.alt}
-          fill
-          sizes="100vw"
-          className="object-cover"
-        />
+        <Image src={image.src} alt={image.alt} fill sizes="100vw" className="object-cover" />
         <div
           className="absolute inset-0 bg-[linear-gradient(100deg,rgba(8,19,31,0.9)_0%,rgba(8,19,31,0.62)_45%,rgba(8,19,31,0.15)_100%)]"
           aria-hidden="true"

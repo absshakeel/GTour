@@ -139,17 +139,19 @@ export default function HotelFilters({
       ? 'Minimum price must not exceed the maximum.'
       : null;
 
-  const dateError = checkIn && checkOut && checkOut <= checkIn ? 'Check-out must be after check-in.' : null;
-  const dateHint = checkIn && !checkOut ? 'Add a check-out date to filter by availability.' : undefined;
+  const dateError =
+    checkIn && checkOut && checkOut <= checkIn ? 'Check-out must be after check-in.' : null;
+  const dateHint =
+    checkIn && !checkOut ? 'Add a check-out date to filter by availability.' : undefined;
 
   const hasFilters = Boolean(
     search.trim() ||
-      destinationId ||
-      minPrice.trim() ||
-      maxPrice.trim() ||
-      guests.trim() ||
-      minRating ||
-      (checkIn && checkOut)
+    destinationId ||
+    minPrice.trim() ||
+    maxPrice.trim() ||
+    guests.trim() ||
+    minRating ||
+    (checkIn && checkOut),
   );
 
   return (
@@ -207,7 +209,11 @@ export default function HotelFilters({
         </div>
 
         <div className="lg:col-span-3">
-          <Field label="Min price / night" htmlFor="hotel-min-price" error={priceError ?? undefined}>
+          <Field
+            label="Min price / night"
+            htmlFor="hotel-min-price"
+            error={priceError ?? undefined}
+          >
             <Input
               id="hotel-min-price"
               name="min_price"

@@ -1,7 +1,5 @@
 import { HotelCard } from '@/components/hotels/HotelCard';
-import { ButtonLink } from '@gtour/ui';
-import { EmptyState, ErrorState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { ButtonLink, EmptyState, ErrorState, Reveal } from '@gtour/ui';
 import { Section, SectionHeading } from './Section';
 import type { HotelDto } from '@gtour/utils';
 
@@ -9,13 +7,7 @@ import type { HotelDto } from '@gtour/utils';
  * Section 3 — Find Your Perfect Stay. Renders live hotel records. No prices or
  * ratings are invented; unavailable fields simply are not shown.
  */
-export default function PerfectStay({
-  hotels,
-  error,
-}: {
-  hotels: HotelDto[];
-  error?: string;
-}) {
+export default function PerfectStay({ hotels, error }: { hotels: HotelDto[]; error?: string }) {
   return (
     <Section id="stays">
       <SectionHeading
@@ -39,8 +31,12 @@ export default function PerfectStay({
             description="No published properties yet. Explore destinations now, or list a property if you’re a host."
             action={
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <ButtonLink href="/destinations" variant="outline" size="sm">Explore destinations</ButtonLink>
-                <ButtonLink href="/register?role=hotel_owner" variant="ghost" size="sm">List your property</ButtonLink>
+                <ButtonLink href="/destinations" variant="outline" size="sm">
+                  Explore destinations
+                </ButtonLink>
+                <ButtonLink href="/register?role=hotel_owner" variant="ghost" size="sm">
+                  List your property
+                </ButtonLink>
               </div>
             }
           />

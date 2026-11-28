@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Button, Field, ImageUploader, Input, Select, Textarea } from '@gtour/ui';
-import { getApiErrorMessage } from '@gtour/utils';
-import type { HotelDto } from '@gtour/utils';
+import { getApiErrorMessage, PAYMENT_POLICY_OPTIONS } from '@gtour/utils';
+import type { HotelDto, PaymentPolicyValue } from '@gtour/utils';
 import { createHotel, fetchDestinationOptions, updateHotel } from '@/lib/owner-api';
 import type { DestinationOption, HotelInput } from '@/lib/owner-api';
 
@@ -14,6 +14,7 @@ interface FormState {
   phone: string;
   email: string;
   destination_id: string;
+  payment_policy: PaymentPolicyValue;
 }
 
 const EMPTY: FormState = {
@@ -23,6 +24,7 @@ const EMPTY: FormState = {
   phone: '',
   email: '',
   destination_id: '',
+  payment_policy: 'pay_on_confirmation',
 };
 
 function toImages(hotel?: HotelDto | null): string[] {
@@ -39,7 +41,10 @@ function toFormState(hotel?: HotelDto | null): FormState {
     phone: hotel.phone ?? '',
     email: hotel.email ?? '',
     destination_id:
-      typeof hotel.destination_id === 'string' ? hotel.destination_id : hotel.destination_id?._id ?? '',
+      typeof hotel.destination_id === 'string'
+        ? hotel.destination_id
+        : (hotel.destination_id?._id ?? ''),
+    payment_policy: hotel.payment_policy ?? 'pay_on_confirmation',
   };
 }
 
@@ -92,8 +97,10 @@ export default function PropertyForm({
     const next: Partial<Record<keyof FormState | 'images', string>> = {};
 
     if (form.name.trim().length < 2) next.name = 'Enter at least 2 characters.';
-    if (form.description.trim().length < 10) next.description = 'Describe the property in at least 10 characters.';
-    if (form.address.trim().length < 5) next.address = 'Enter a full address (at least 5 characters).';
+    if (form.description.trim().length < 10)
+      next.description = 'Describe the property in at least 10 characters.';
+    if (form.address.trim().length < 5)
+      next.address = 'Enter a full address (at least 5 characters).';
     if (!form.destination_id) next.destination_id = 'Choose a destination.';
     if (images.length < 1) next.images = 'Upload at least one image.';
 
@@ -108,6 +115,7 @@ export default function PropertyForm({
       email: form.email.trim() || undefined,
       images,
       destination_id: form.destination_id,
+      payment_policy: form.payment_policy,
     };
   }
 
@@ -146,7 +154,10 @@ export default function PropertyForm({
       </h2>
 
       {message ? (
-        <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700">
+        <p
+          role="alert"
+          className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700"
+        >
           {message}
         </p>
       ) : null}
@@ -176,7 +187,9 @@ export default function PropertyForm({
             <option value="">Select a destination</option>
             {destinations.map((destination) => (
               <option key={destination._id} value={destination._id}>
-                {destination.country ? `${destination.name} — ${destination.country}` : destination.name}
+                {destination.country
+                  ? `${destination.name} — ${destination.country}`
+                  : destination.name}
               </option>
             ))}
           </Select>
@@ -234,6 +247,24 @@ export default function PropertyForm({
         error={errors.images}
         hint="The first image is used as the cover photo. Files upload straight to storage."
       />
+
+      <Field
+        label="Payment policy"
+        htmlFor="owner-hotel-policy"
+        hint={PAYMENT_POLICY_OPTIONS.find((option) => option.value === form.payment_policy)?.hint}
+      >
+        <Select
+          id="owner-hotel-policy"
+          value={form.payment_policy}
+          onChange={(event) => update('payment_policy', event.target.value)}
+        >
+          {PAYMENT_POLICY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={saving}>

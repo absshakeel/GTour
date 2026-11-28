@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { RatingBadge } from '@gtour/ui';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency } from '@gtour/utils';
 import { images } from '@/lib/images';
 import { refName, type HotelDto } from '@gtour/utils';
 

@@ -5,7 +5,7 @@ import { Badge, Button, EmptyState, ErrorState, LiveStatus } from '@gtour/ui';
 import { getApiErrorMessage } from '@gtour/utils';
 import type { HotelDto } from '@gtour/utils';
 import { deleteHotel, fetchMyHotels } from '@/lib/owner-api';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency } from '@gtour/utils';
 import PropertyForm from './PropertyForm';
 import RoomManager from './RoomManager';
 
@@ -57,12 +57,16 @@ export default function PropertyManager() {
   }
 
   if (loading) return <LiveStatus>Loading your properties…</LiveStatus>;
-  if (error && hotels.length === 0) return <ErrorState description={error} onRetry={load} compact />;
+  if (error && hotels.length === 0)
+    return <ErrorState description={error} onRetry={load} compact />;
 
   return (
     <div className="space-y-5">
       {error ? (
-        <p role="alert" className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700">
+        <p
+          role="alert"
+          className="rounded-2xl bg-terracotta-50 px-4 py-3 text-sm text-terracotta-700"
+        >
           {error}
         </p>
       ) : null}
@@ -98,7 +102,9 @@ export default function PropertyManager() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="font-display text-xl font-semibold text-ink-900">{hotel.name}</h2>
+                    <h2 className="font-display text-xl font-semibold text-ink-900">
+                      {hotel.name}
+                    </h2>
                     <p className="text-sm text-ink-500">
                       {hotel.address}
                       {destination ? ` · ${destination}` : ''}

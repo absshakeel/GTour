@@ -2,15 +2,19 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, ButtonLink, EmptyState, ErrorState, Skeleton } from '@gtour/ui';
-import { getApiErrorMessage, readUser, refName } from '@gtour/utils';
+import { Button, ButtonLink, EmptyState, ErrorState, Skeleton } from '@gtour/ui';
+import { formatCurrency, getApiErrorMessage, readUser } from '@gtour/utils';
 import type { AuthUserDto, BookingStatusValue } from '@gtour/utils';
 import { fetchBookingPayment, fetchMyBookings } from '@/lib/tourist-api';
 import type { PaymentDto, TouristBookingDto } from '@/lib/tourist-api';
-import { BOOKING_STATUS_TONES, bookingStatusLabel, formatDate, stayNights } from '@/lib/booking-status';
-import { formatCurrency } from '@/lib/format';
+import CheckoutDialog from '@/components/payment/CheckoutDialog';
+import { BookingCard } from '@/components/trips/BookingCard';
+import { formatDate } from '@/lib/booking-status';
+import { bookingCopy, bookingDestination, bookingDestinationId } from '@/lib/booking-display';
+import type { BookingType } from '@/lib/booking-display';
 
 type Filter = 'all' | BookingStatusValue;
+type TypeFilter = 'all' | BookingType;
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -20,6 +24,13 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
+  { value: 'all', label: 'Everything' },
+  { value: 'hotel', label: 'Stays' },
+  { value: 'photography', label: 'Photoshoots' },
+  { value: 'vehicle', label: 'Transport' },
+];
+
 const EXPLORE = [
   { href: '/destinations', title: 'Destinations', desc: 'Places worth the journey.' },
   { href: '/hotels', title: 'Stays', desc: 'Hotels and rooms island-wide.' },
@@ -27,43 +38,21 @@ const EXPLORE = [
   { href: '/vehicles', title: 'Transport', desc: 'Vehicles with a driver.' },
 ];
 
-function hotelName(booking: TouristBookingDto): string {
-  const hotel = booking.hotel_id;
-  if (hotel && typeof hotel === 'object' && hotel.name) return hotel.name;
-  return 'Hotel stay';
-}
-
-function hotelCover(booking: TouristBookingDto): string | undefined {
-  const hotel = booking.hotel_id;
-  if (hotel && typeof hotel === 'object') return hotel.images?.[0];
-  return undefined;
-}
-
-/** Destination of the booked stay. Everything on GTour is organised by place. */
-function bookingDestination(booking: TouristBookingDto): string | undefined {
-  const hotel = booking.hotel_id;
-  if (!hotel || typeof hotel !== 'object') return undefined;
-  return refName(hotel.destination_id);
-}
-
-function bookingDestinationId(booking: TouristBookingDto): string | undefined {
-  const hotel = booking.hotel_id;
-  if (!hotel || typeof hotel !== 'object') return undefined;
-  const destination = hotel.destination_id;
-  if (destination && typeof destination === 'object') return destination._id;
-  return typeof destination === 'string' ? destination : undefined;
-}
-
-function roomLabel(booking: TouristBookingDto): string | undefined {
-  const room = booking.hotel_room_id;
-  if (room && typeof room === 'object') return room.room_type;
-  return undefined;
-}
-
 function isUpcoming(booking: TouristBookingDto): boolean {
   if (booking.status === 'cancelled' || booking.status === 'completed') return false;
   const end = new Date(booking.end_date).getTime();
   return Number.isFinite(end) ? end >= Date.now() : false;
+}
+
+/**
+ * Groups a booking list by type so the history reads as separate ledgers rather
+ * than one undifferentiated pile of rows.
+ */
+function groupByType(bookings: TouristBookingDto[]): { type: BookingType; rows: TouristBookingDto[] }[] {
+  const order: BookingType[] = ['hotel', 'photography', 'vehicle'];
+  return order
+    .map((type) => ({ type, rows: bookings.filter((row) => row.booking_type === type) }))
+    .filter((group) => group.rows.length > 0);
 }
 
 function StatCard({
@@ -79,124 +68,13 @@ function StatCard({
 }) {
   return (
     <div className="rounded-panel border border-ink-100/70 bg-white p-5 shadow-soft">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-ink-400">
+        {label}
+      </p>
       <p className="mt-2 font-display text-3xl font-semibold leading-none text-ink-900">{value}</p>
       <p className="mt-2 text-xs text-ink-500">{hint}</p>
       <span aria-hidden="true" className={`mt-3 block h-1 w-10 rounded-pill ${tone}`} />
     </div>
-  );
-}
-
-function BookingCard({
-  booking,
-  payment,
-}: {
-  booking: TouristBookingDto;
-  payment?: PaymentDto | null;
-}) {
-  const cover = hotelCover(booking);
-  const nights = stayNights(booking.start_date, booking.end_date);
-  const room = roomLabel(booking);
-  const snapshot = booking.price_snapshot;
-  const destination = bookingDestination(booking);
-  const destinationId = bookingDestinationId(booking);
-
-  return (
-    <article className="overflow-hidden rounded-panel border border-ink-100/70 bg-white shadow-soft">
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-        <div className="h-32 w-full shrink-0 overflow-hidden rounded-2xl bg-sand-100 sm:h-24 sm:w-32">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt={hotelName(booking)} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-400">
-              No photo
-            </div>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              {destination ? (
-                destinationId ? (
-                  <Link
-                    href={`/destinations/${destinationId}`}
-                    className="mb-1 inline-flex items-center gap-1 rounded-pill bg-sea-100 px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sea-700 transition-colors hover:bg-sea-200"
-                  >
-                    <span aria-hidden="true">📍</span>
-                    {destination}
-                  </Link>
-                ) : (
-                  <p className="mb-1 inline-flex items-center gap-1 rounded-pill bg-sea-100 px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sea-700">
-                    {destination}
-                  </p>
-                )
-              ) : null}
-              <h3 className="truncate font-display text-lg font-semibold text-ink-900">
-                {hotelName(booking)}
-              </h3>
-              <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.12em] text-ink-400">
-                {booking.booking_reference}
-              </p>
-            </div>
-            <Badge tone={BOOKING_STATUS_TONES[booking.status]}>
-              {bookingStatusLabel(booking.status)}
-            </Badge>
-          </div>
-
-          <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-            <div className="flex gap-1.5">
-              <dt className="text-ink-400">In</dt>
-              <dd className="font-medium text-ink-800">{formatDate(booking.start_date)}</dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt className="text-ink-400">Out</dt>
-              <dd className="font-medium text-ink-800">{formatDate(booking.end_date)}</dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt className="text-ink-400">Stay</dt>
-              <dd className="font-medium text-ink-800">
-                {nights} night{nights === 1 ? '' : 's'} · {booking.room_count} room
-                {booking.room_count === 1 ? '' : 's'}
-              </dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt className="text-ink-400">Guests</dt>
-              <dd className="font-medium text-ink-800">{booking.guest_count}</dd>
-            </div>
-            {room ? (
-              <div className="flex gap-1.5">
-                <dt className="text-ink-400">Room</dt>
-                <dd className="truncate font-medium text-ink-800">{room}</dd>
-              </div>
-            ) : null}
-            {payment ? (
-              <div className="flex gap-1.5">
-                <dt className="text-ink-400">Payment</dt>
-                <dd className="font-medium capitalize text-ink-800">
-                  {payment.payment_status.replace(/_/g, ' ')}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-        </div>
-
-        <div className="shrink-0 sm:text-right">
-          <p className="font-display text-xl font-semibold text-ink-900">
-            {formatCurrency(booking.total_amount)}
-          </p>
-          {snapshot ? (
-            <p className="mt-0.5 text-[11px] text-ink-400">
-              {formatCurrency(snapshot.price_per_night, snapshot.currency)}/night
-            </p>
-          ) : null}
-          {booking.status === 'pending' ? (
-            <p className="mt-2 text-[11px] font-medium text-gold-600">Awaiting hotel approval</p>
-          ) : null}
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -208,6 +86,9 @@ export default function TouristDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [destinationFilter, setDestinationFilter] = useState<string>('all');
+  const [checkout, setCheckout] = useState<TouristBookingDto | null>(null);
 
   useEffect(() => setUser(readUser()), []);
 
@@ -219,10 +100,11 @@ export default function TouristDashboard() {
       setBookings(rows);
 
       // Payment rows are read per booking; cap the fan-out so a long history
-      // does not fire dozens of requests at once.
-      const withPayment = rows.filter((row) => row.status !== 'pending').slice(0, 10);
+      // does not fire dozens of requests at once. Pending requests are included
+      // because `pay_on_request` properties collect before the owner reviews.
+      const withPayment = rows.slice(0, 20);
       const entries = await Promise.all(
-        withPayment.map(async (row) => [row._id, await fetchBookingPayment(row._id)] as const)
+        withPayment.map(async (row) => [row._id, await fetchBookingPayment(row._id)] as const),
       );
       setPayments(Object.fromEntries(entries));
     } catch (e) {
@@ -237,7 +119,9 @@ export default function TouristDashboard() {
   }, [load]);
 
   const stats = useMemo(() => {
-    const upcoming = bookings.filter(isUpcoming);
+    const upcoming = bookings
+      .filter(isUpcoming)
+      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
     const completed = bookings.filter((row) => row.status === 'completed');
     const spend = bookings
       .filter((row) => row.status === 'confirmed' || row.status === 'completed')
@@ -246,10 +130,38 @@ export default function TouristDashboard() {
     return { upcoming, completed, spend };
   }, [bookings]);
 
-  const visible = useMemo(
-    () => (filter === 'all' ? bookings : bookings.filter((row) => row.status === filter)),
-    [bookings, filter]
+  /**
+   * Bookings narrowed to one destination. Everything downstream — the type
+   * counts, the status counts and the ledgers — reads through it so the
+   * destination chip behaves like a real scope and not just a visual filter.
+   */
+  const inDestination = useMemo(() => {
+    if (destinationFilter === 'all') return bookings;
+    return bookings.filter(
+      (row) => (bookingDestinationId(row) ?? 'elsewhere') === destinationFilter,
+    );
+  }, [bookings, destinationFilter]);
+
+  /** How many of each type the traveller holds, so the tiles describe the mix. */
+  const mix = useMemo(
+    () =>
+      (['hotel', 'photography', 'vehicle'] as BookingType[]).map((type) => ({
+        type,
+        count: inDestination.filter((row) => row.booking_type === type).length,
+      })),
+    [inDestination],
   );
+
+  const visible = useMemo(() => {
+    const byStatus =
+      filter === 'all' ? inDestination : inDestination.filter((row) => row.status === filter);
+    return typeFilter === 'all'
+      ? byStatus
+      : byStatus.filter((row) => row.booking_type === typeFilter);
+  }, [inDestination, filter, typeFilter]);
+
+  /** The history split into one ledger per booking type. */
+  const groups = useMemo(() => groupByType(visible), [visible]);
 
   /**
    * The next place the traveller is actually going. Surfaced above the lists so
@@ -257,7 +169,7 @@ export default function TouristDashboard() {
    */
   const focusDestination = useMemo(() => {
     const next = [...stats.upcoming].sort(
-      (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+      (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
     )[0];
     if (!next) return null;
 
@@ -266,6 +178,45 @@ export default function TouristDashboard() {
 
     return { name, id: bookingDestinationId(next), startDate: next.start_date };
   }, [stats.upcoming]);
+
+  /**
+   * Every booking rolled up by destination, so the dashboard answers "where am
+   * I going?" before "what did I book?". Bookings whose listing carries no
+   * destination are collected under a single "Elsewhere" entry.
+   */
+  const byDestination = useMemo(() => {
+    const order: BookingType[] = ['hotel', 'photography', 'vehicle'];
+    const grouped = new Map<
+      string,
+      { id?: string; name: string; counts: Record<BookingType, number>; total: number }
+    >();
+
+    for (const booking of bookings) {
+      const name = bookingDestination(booking) ?? 'Elsewhere';
+      const id = bookingDestinationId(booking);
+      const key = id ?? name;
+      const entry =
+        grouped.get(key) ??
+        { id, name, counts: { hotel: 0, photography: 0, vehicle: 0 }, total: 0 };
+      entry.counts[booking.booking_type] += 1;
+      entry.total += 1;
+      grouped.set(key, entry);
+    }
+
+    return [...grouped.values()]
+      .map((entry) => ({
+        ...entry,
+        summary: order
+          .filter((type) => entry.counts[type] > 0)
+          .map((type) => {
+            const copy = bookingCopy(type);
+            const label = entry.counts[type] === 1 ? copy.noun : copy.plural;
+            return `${entry.counts[type]} ${label.toLowerCase()}`;
+          })
+          .join(' · '),
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [bookings]);
 
   return (
     <div className="space-y-8">
@@ -282,7 +233,7 @@ export default function TouristDashboard() {
               {focusDestination.name}
             </p>
             <p className="mt-0.5 text-sm text-ink-600">
-              Your next stay starts {formatDate(focusDestination.startDate)}.
+              Your next booking starts {formatDate(focusDestination.startDate)}.
             </p>
           </div>
           {focusDestination.id ? (
@@ -293,23 +244,63 @@ export default function TouristDashboard() {
         </section>
       ) : null}
 
+      {byDestination.length > 1 ? (
+        <section aria-label="Your destinations">
+          <div className="mb-3">
+            <h2 className="font-display text-lg font-semibold text-ink-900">Your destinations</h2>
+            <p className="text-sm text-ink-500">
+              Every booking grouped by where it happens, across stays, photoshoots and transport.
+            </p>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {byDestination.map((entry) => {
+              const body = (
+                <>
+                  <p className="truncate font-display text-base font-semibold text-ink-900">
+                    {entry.name}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-500">{entry.summary}</p>
+                </>
+              );
+
+              return (
+                <li key={entry.id ?? entry.name}>
+                  {entry.id ? (
+                    <Link
+                      href={`/destinations/${entry.id}`}
+                      className="block rounded-panel border border-ink-100/80 bg-white p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-sea-300"
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className="rounded-panel border border-dashed border-ink-200 bg-sand-50/60 p-4">
+                      {body}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
       <section aria-label="At a glance" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Bookings"
-          value={String(bookings.length)}
-          hint="Every stay you have booked"
+          label="Stays"
+          value={String(mix.find((row) => row.type === 'hotel')?.count ?? 0)}
+          hint="Hotels and rooms you have booked"
           tone="bg-sea-500"
         />
         <StatCard
-          label="Upcoming"
-          value={String(stats.upcoming.length)}
-          hint="Trips that have not finished yet"
+          label="Photoshoots"
+          value={String(mix.find((row) => row.type === 'photography')?.count ?? 0)}
+          hint="Photo sessions with a local photographer"
           tone="bg-gold-400"
         />
         <StatCard
-          label="Completed"
-          value={String(stats.completed.length)}
-          hint="Stays you have already taken"
+          label="Transport"
+          value={String(mix.find((row) => row.type === 'vehicle')?.count ?? 0)}
+          hint="Vehicles you have rented with a driver"
           tone="bg-ink-500"
         />
         <StatCard
@@ -324,10 +315,14 @@ export default function TouristDashboard() {
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="font-display text-lg font-semibold text-ink-900">Upcoming trips</h2>
-            <p className="text-sm text-ink-500">Your next confirmed or pending stays.</p>
+            <p className="text-sm text-ink-500">
+              {stats.upcoming.length > 0
+                ? `${stats.upcoming.length} booking${stats.upcoming.length === 1 ? '' : 's'} still ahead of you.`
+                : 'Everything you have booked, in one place.'}
+            </p>
           </div>
           <ButtonLink href="/hotels" size="sm" variant="outline">
-            Book another stay
+            Book something new
           </ButtonLink>
         </div>
 
@@ -341,14 +336,19 @@ export default function TouristDashboard() {
         ) : stats.upcoming.length === 0 ? (
           <EmptyState
             title="No trips lined up"
-            description="When you book a hotel it shows up here with its confirmation status."
+            description="Book a stay, a photoshoot or transport and it appears here with its confirmation status."
             action={<ButtonLink href="/hotels">Find a stay</ButtonLink>}
             compact
           />
         ) : (
           <div className="space-y-3">
             {stats.upcoming.slice(0, 3).map((booking) => (
-              <BookingCard key={booking._id} booking={booking} payment={payments[booking._id]} />
+              <BookingCard
+                key={booking._id}
+                booking={booking}
+                payment={payments[booking._id]}
+                onPay={setCheckout}
+              />
             ))}
           </div>
         )}
@@ -358,9 +358,40 @@ export default function TouristDashboard() {
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold text-ink-900">Booking history</h2>
-            <p className="text-sm text-ink-500">Filter your stays by status.</p>
+            <p className="text-sm text-ink-500">
+              Each kind of booking keeps its own ledger below. Filter by destination, status or by
+              what you booked.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter bookings">
+        </div>
+
+        <div className="mb-4 space-y-2.5">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by booking type">
+            {TYPE_FILTERS.map((option) => {
+              const count =
+                option.value === 'all'
+                  ? inDestination.length
+                  : (mix.find((row) => row.type === option.value)?.count ?? 0);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={typeFilter === option.value}
+                  onClick={() => setTypeFilter(option.value)}
+                  className={
+                    typeFilter === option.value
+                      ? 'rounded-pill bg-sea-700 px-3.5 py-1.5 text-xs font-semibold text-white'
+                      : 'rounded-pill border border-ink-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-700 transition-colors hover:border-sea-300 hover:bg-sea-50'
+                  }
+                >
+                  {option.label}
+                  <span className="ml-1.5 text-[10px] font-medium opacity-70">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
             {FILTERS.map((option) => (
               <button
                 key={option.value}
@@ -377,6 +408,42 @@ export default function TouristDashboard() {
               </button>
             ))}
           </div>
+
+          {byDestination.length > 1 ? (
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by destination">
+              <button
+                type="button"
+                aria-pressed={destinationFilter === 'all'}
+                onClick={() => setDestinationFilter('all')}
+                className={
+                  destinationFilter === 'all'
+                    ? 'rounded-pill bg-terracotta-500 px-3.5 py-1.5 text-xs font-semibold text-white'
+                    : 'rounded-pill border border-ink-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-700 transition-colors hover:border-terracotta-300 hover:bg-terracotta-50'
+                }
+              >
+                Everywhere
+              </button>
+              {byDestination.map((entry) => {
+                const value = entry.id ?? 'elsewhere';
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={destinationFilter === value}
+                    onClick={() => setDestinationFilter(value)}
+                    className={
+                      destinationFilter === value
+                        ? 'rounded-pill bg-terracotta-500 px-3.5 py-1.5 text-xs font-semibold text-white'
+                        : 'rounded-pill border border-ink-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-700 transition-colors hover:border-terracotta-300 hover:bg-terracotta-50'
+                    }
+                  >
+                    {entry.name}
+                    <span className="ml-1.5 text-[10px] font-medium opacity-70">{entry.total}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
 
         {loading ? (
@@ -385,20 +452,46 @@ export default function TouristDashboard() {
             <Skeleton className="h-32 w-full rounded-panel" />
             <Skeleton className="h-32 w-full rounded-panel" />
           </div>
-        ) : error ? null : visible.length === 0 ? (
+        ) : error ? null : groups.length === 0 ? (
           <EmptyState
-            title={filter === 'all' ? 'No bookings yet' : `No ${filter.replace('_', ' ')} bookings`}
+            title={filter === 'all' && typeFilter === 'all' ? 'No bookings yet' : 'Nothing matches those filters'}
             description={
-              filter === 'all'
-                ? 'Start exploring hotels across Bangladesh and your bookings will appear here.'
-                : 'Try a different status filter to see your other bookings.'
+              filter === 'all' && typeFilter === 'all'
+                ? 'Book a stay, a photoshoot or transport and your bookings will appear here.'
+                : 'Try a different status or booking type to see your other bookings.'
             }
             compact
           />
         ) : (
-          <div className="space-y-3">
-            {visible.map((booking) => (
-              <BookingCard key={booking._id} booking={booking} payment={payments[booking._id]} />
+          <div className="space-y-6">
+            {groups.map((group) => (
+              <div key={group.type}>
+                <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2 border-b border-ink-100 pb-2">
+                  <h3 className="font-display text-base font-semibold text-ink-900">
+                    {bookingCopy(group.type).plural}
+                    <span className="ml-2 text-sm font-normal text-ink-400">
+                      {group.rows.length} booking{group.rows.length === 1 ? '' : 's'}
+                    </span>
+                  </h3>
+                  <ButtonLink
+                    href={bookingCopy(group.type).catalogue}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Book another
+                  </ButtonLink>
+                </div>
+                <div className="space-y-3">
+                  {group.rows.map((booking) => (
+                    <BookingCard
+                      key={booking._id}
+                      booking={booking}
+                      payment={payments[booking._id]}
+                      onPay={setCheckout}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -469,6 +562,14 @@ export default function TouristDashboard() {
           </Button>
         </div>
       </section>
+
+      {checkout ? (
+        <CheckoutDialog
+          bookingId={checkout._id}
+          bookingReference={checkout.booking_reference}
+          onClose={() => setCheckout(null)}
+        />
+      ) : null}
     </div>
   );
 }

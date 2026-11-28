@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
 import { SectionHeading } from '@/components/home/Section';
-import { ButtonLink } from '@gtour/ui';
-import { EmptyState, ErrorState } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
+import { ButtonLink, EmptyState, ErrorState, Reveal } from '@gtour/ui';
 import { VehicleCard } from '@/components/vehicles/VehicleCard';
-import { fetchVehicles } from '@/lib/server-api';
+import DestinationFilter from '@/components/directory/DestinationFilter';
+import { fetchDestinations, fetchVehicles } from '@/lib/server-api';
 
 export const revalidate = 120;
 
@@ -14,31 +13,68 @@ export const metadata: Metadata = {
     'Compare vehicles published on GTour by type, capacity and daily price, and see which provider offers them.',
 };
 
-export default async function VehiclesPage() {
-  const result = await fetchVehicles();
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function firstValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
+export default async function VehiclesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const destinationId = firstValue(params.destination_id);
+
+  const [result, destinationsResult] = await Promise.all([
+    fetchVehicles(destinationId || undefined),
+    fetchDestinations({ limit: 100 }),
+  ]);
+
   const vehicles = result.ok ? result.data : [];
+  const destinations = destinationsResult.ok ? destinationsResult.data : [];
 
   return (
     <div className="gtour-section">
       <div className="gtour-container">
         <SectionHeading
+          as="h1"
           eyebrow="Getting around"
           title="Vehicles for the road between stops"
           description="Vehicles are listed with their provider, seating capacity and daily price so you can compare before you decide. Availability is confirmed on the server at booking time."
           action={{ href: '/destinations', label: 'Browse destinations' }}
         />
 
-        <div className="mt-12">
+        <div className="mt-10">
+          <DestinationFilter
+            destinations={destinations}
+            value={destinationId}
+            label="Vehicle's destination"
+          />
+        </div>
+
+        <div className="mt-10">
           {!result.ok ? (
             <ErrorState title="Vehicles are unavailable" description={result.message} />
           ) : vehicles.length === 0 ? (
             <EmptyState
-              title="No vehicles published yet"
-              description="Our providers have not published vehicles yet. Explore destinations in the meantime."
+              title={destinationId ? 'No vehicles here yet' : 'No vehicles published yet'}
+              description={
+                destinationId
+                  ? 'No provider has published a vehicle for this destination yet. Clear the filter to see every vehicle.'
+                  : 'Our providers have not published vehicles yet. Explore destinations in the meantime.'
+              }
               action={
-                <ButtonLink href="/destinations" variant="outline">
-                  Explore destinations
-                </ButtonLink>
+                destinationId ? (
+                  <ButtonLink href="/vehicles" variant="outline">
+                    Clear filter
+                  </ButtonLink>
+                ) : (
+                  <ButtonLink href="/destinations" variant="outline">
+                    Explore destinations
+                  </ButtonLink>
+                )
               }
             />
           ) : (

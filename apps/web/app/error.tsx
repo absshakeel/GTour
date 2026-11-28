@@ -23,8 +23,8 @@ export default function GlobalRouteError({
           We could not finish loading this page
         </h1>
         <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-ink-500">
-          The travel service may be temporarily unavailable. Try again, or continue browsing from the
-          destinations page.
+          The travel service may be temporarily unavailable. Try again, or continue browsing from
+          the destinations page.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button onClick={reset}>Try again</Button>

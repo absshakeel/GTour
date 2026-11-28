@@ -27,12 +27,18 @@ export default function Pagination({
     'inline-flex h-10 min-w-10 items-center justify-center rounded-pill border px-3 text-sm font-semibold transition-colors duration-200';
 
   return (
-    <nav aria-label="Destination pages" className={cn('flex flex-wrap items-center justify-center gap-2', className)}>
+    <nav
+      aria-label="Destination pages"
+      className={cn('flex flex-wrap items-center justify-center gap-2', className)}
+    >
       {page > 1 ? (
         <Link
           href={buildHref(page - 1)}
           rel="prev"
-          className={cn(linkClass, 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700')}
+          className={cn(
+            linkClass,
+            'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700',
+          )}
         >
           Previous
         </Link>
@@ -42,7 +48,10 @@ export default function Pagination({
         <>
           <Link
             href={buildHref(1)}
-            className={cn(linkClass, 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700')}
+            className={cn(
+              linkClass,
+              'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700',
+            )}
           >
             1
           </Link>
@@ -63,7 +72,7 @@ export default function Pagination({
               linkClass,
               current
                 ? 'border-sea-500 bg-sea-500 text-white'
-                : 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700'
+                : 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700',
             )}
           >
             {number}
@@ -78,7 +87,10 @@ export default function Pagination({
           </span>
           <Link
             href={buildHref(pages)}
-            className={cn(linkClass, 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700')}
+            className={cn(
+              linkClass,
+              'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700',
+            )}
           >
             {pages}
           </Link>
@@ -89,7 +101,10 @@ export default function Pagination({
         <Link
           href={buildHref(page + 1)}
           rel="next"
-          className={cn(linkClass, 'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700')}
+          className={cn(
+            linkClass,
+            'border-ink-200 bg-white text-ink-700 hover:border-sea-400 hover:text-sea-700',
+          )}
         >
           Next
         </Link>

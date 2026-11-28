@@ -1,6 +1,5 @@
-import { ButtonLink } from '@gtour/ui';
-import { Reveal } from '@gtour/ui';
-import { Section, SectionHeading } from './Section';
+import { ButtonLink, Reveal } from '@gtour/ui';
+import { Section } from './Section';
 
 const PROVIDER_TYPES = [
   {
@@ -43,7 +42,15 @@ export default function BecomeProvider() {
               {BENEFITS.map((benefit) => (
                 <li key={benefit} className="flex items-start gap-3 text-sm text-ink-700">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sea-100 text-sea-700">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3 stroke-current" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-3 w-3 stroke-current"
+                      fill="none"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M4 12l5 5L20 6" />
                     </svg>
                   </span>
