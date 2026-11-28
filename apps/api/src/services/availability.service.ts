@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Room, { IRoom } from '../models/Room';
+import { IRoom } from '../models/Room';
 import RoomAvailability from '../models/RoomAvailability';
 import { ApiError } from '../utils/ApiError';
 import { eachNight, normaliseStayRange, startOfUtcDay } from '../utils/dates';
@@ -46,7 +46,7 @@ function statusFor(availableRooms: number, totalRooms: number): NightlyRate['sta
 export async function loadNightlyAvailability(
   room: IRoom,
   start: Date,
-  end: Date
+  end: Date,
 ): Promise<NightlyRate[]> {
   const nights = eachNight(start, end);
   const overrides = await RoomAvailability.find({
@@ -54,7 +54,9 @@ export async function loadNightlyAvailability(
     date: { $in: nights },
   });
 
-  const byDate = new Map(overrides.map((entry) => [startOfUtcDay(entry.date).toISOString(), entry]));
+  const byDate = new Map(
+    overrides.map((entry) => [startOfUtcDay(entry.date).toISOString(), entry]),
+  );
 
   return nights.map((night) => {
     const key = night.toISOString();
@@ -86,7 +88,7 @@ export async function quoteStay(
   startValue: Date | string,
   endValue: Date | string,
   rooms = 1,
-  guests = 1
+  guests = 1,
 ): Promise<StayQuote> {
   const { start, end, nights } = normaliseStayRange(startValue, endValue);
 
@@ -94,7 +96,7 @@ export async function quoteStay(
     throw new ApiError(
       `This room sleeps ${room.capacity} guests; ${rooms} room(s) cannot host ${guests} guests`,
       400,
-      'CAPACITY_EXCEEDED'
+      'CAPACITY_EXCEEDED',
     );
   }
 
@@ -105,7 +107,7 @@ export async function quoteStay(
   // A stay is limited by its scarcest night, not by the first one.
   const maxRooms = nightly.reduce(
     (lowest, night) => Math.min(lowest, night.available_rooms),
-    room.total_rooms
+    room.total_rooms,
   );
 
   return {
@@ -127,7 +129,7 @@ export async function quoteStay(
 async function syncStatuses(
   room: IRoom,
   nights: Date[],
-  session?: mongoose.ClientSession
+  session?: mongoose.ClientSession,
 ): Promise<void> {
   await RoomAvailability.updateMany(
     { room_id: room._id, date: { $in: nights.map((night) => startOfUtcDay(night)) } },
@@ -146,7 +148,7 @@ async function syncStatuses(
         },
       },
     ],
-    { session }
+    { session },
   );
 }
 
@@ -163,7 +165,7 @@ export async function reserveNights(
   start: Date,
   end: Date,
   rooms: number,
-  session?: mongoose.ClientSession
+  session?: mongoose.ClientSession,
 ): Promise<void> {
   const nights = eachNight(start, end);
   const reserved: Date[] = [];
@@ -181,7 +183,7 @@ export async function reserveNights(
             status: 'available',
           },
         },
-        { upsert: true, session }
+        { upsert: true, session },
       );
 
       const updated = await RoomAvailability.findOneAndUpdate(
@@ -192,7 +194,7 @@ export async function reserveNights(
           available_rooms: { $gte: rooms },
         },
         { $inc: { available_rooms: -rooms } },
-        { new: true, session }
+        { new: true, session },
       );
 
       if (!updated) {
@@ -200,7 +202,7 @@ export async function reserveNights(
           `No availability for ${night.toISOString().slice(0, 10)}`,
           409,
           'NO_AVAILABILITY',
-          { date: night.toISOString().slice(0, 10) }
+          { date: night.toISOString().slice(0, 10) },
         );
       }
 
@@ -219,7 +221,7 @@ export async function releaseNights(
   room: IRoom,
   nights: Date[],
   rooms: number,
-  session?: mongoose.ClientSession
+  session?: mongoose.ClientSession,
 ): Promise<void> {
   if (nights.length === 0) return;
 
@@ -227,7 +229,7 @@ export async function releaseNights(
     await RoomAvailability.updateOne(
       { room_id: room._id, date: startOfUtcDay(night) },
       { $inc: { available_rooms: rooms } },
-      { session }
+      { session },
     );
   }
 
